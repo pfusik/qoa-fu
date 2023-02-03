@@ -1,0 +1,200 @@
+// QOA.ci - decoder of the "Quite OK Audio" format
+//
+// Copyright (C) 2023 Piotr Fusik
+//
+// MIT License:
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+/// Least Mean Squares Filter.
+class LMS
+{
+	int[4] History;
+	int[4] Weights;
+
+	internal void Init!(int i, int h, int w)
+	{
+		History[i] = ((h ^ 0x80) - 0x80) << 8;
+		Weights[i] = ((w ^ 0x80) - 0x80) << 8;
+	}
+
+	internal int Predict() => (History[0] * Weights[0] + History[1] * Weights[1] + History[2] * Weights[2] + History[3] * Weights[3]) >> 13;
+
+	internal void Update!(int sample, int residual)
+	{
+		int delta = residual >> 4;
+		Weights[0] += History[0] < 0 ? -delta : delta;
+		Weights[1] += History[1] < 0 ? -delta : delta;
+		Weights[2] += History[2] < 0 ? -delta : delta;
+		Weights[3] += History[3] < 0 ? -delta : delta;
+		History[0] = History[1];
+		History[1] = History[2];
+		History[2] = History[3];
+		History[3] = sample;
+	}
+}
+
+/// Decoder of the "Quite OK Audio" format.
+public abstract class QOADecoder
+{
+	/// Reads a byte from the stream.
+	/// Returns the unsigned byte value or -1 on EOF.
+	protected abstract int ReadByte!();
+
+	/// Constructs the decoder.
+	/// The decoder can be used for several files, one after another.
+	public QOADecoder()
+	{
+	}
+
+	int Buffer;
+	int BufferBits;
+
+	int ReadBits!(int bits)
+	{
+		while (BufferBits < bits) {
+			int b = ReadByte();
+			if (b < 0)
+				return -1;
+			Buffer = Buffer << 8 | b;
+			BufferBits += 8;
+		}
+		BufferBits -= bits;
+		int result = Buffer >> BufferBits;
+		Buffer &= (1 << BufferBits) - 1;
+		return result;
+	}
+
+	int TotalSamples;
+	int ExpectedFrameHeader;
+	int PositionSamples;
+
+	/// Reads the file header.
+	/// Returns `true` if the header is valid.
+	public bool ReadHeader!()
+	{
+		if (ReadByte() != 'q' || ReadByte() != 'o' || ReadByte() != 'a' || ReadByte() != 'f')
+			return false;
+		BufferBits = Buffer = 0;
+		TotalSamples = ReadBits(32);
+		if (TotalSamples <= 0)
+			return false;
+		ExpectedFrameHeader = ReadBits(32);
+		if (ExpectedFrameHeader <= 0)
+			return false;
+		PositionSamples = 0;
+		int channels = GetChannels();
+		return channels > 0 && channels <= MaxChannels && GetSampleRate() > 0;
+	}
+
+	/// Returns the file length in samples per channel.
+	public int GetTotalSamples() => TotalSamples;
+
+	/// Maximum number of channels supported by the format.
+	public const int MaxChannels = 8;
+
+	/// Returns the number of audio channels.
+	public int GetChannels() => ExpectedFrameHeader >> 24;
+
+	/// Returns the sample rate in Hz.
+	public int GetSampleRate() => ExpectedFrameHeader & 0xffffff;
+
+	const int SliceSamples = 20;
+	const int FrameSlices = 256;
+
+	/// Number of samples per frame.
+	public const int FrameSamples = FrameSlices * SliceSamples;
+
+	int GetFrameBytes() => 8 + GetChannels() * (8 + FrameSlices * 8);
+
+	static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
+
+	/// Reads and decodes a frame.
+	/// Returns the number of samples per channel.
+	public int ReadFrame!(
+		/// PCM samples.
+		/// The buffer must accommodate `FrameSamples` * `GetChannels()` elements.
+		short[]! output)
+	{
+		if (PositionSamples > 0 && ReadBits(32) != ExpectedFrameHeader)
+			return -1;
+		int samples = ReadBits(16);
+		if (samples <= 0 || samples > FrameSamples || samples > TotalSamples - PositionSamples)
+			return -1;
+		int channels = GetChannels();
+		int slices = (samples + (SliceSamples - 1)) / SliceSamples;
+		if (ReadBits(16) != 8 + channels * (8 + slices * 8))
+			return -1;
+
+		LMS()[MaxChannels] lmses;
+		for (int c = 0; c < channels; c++) {
+			for (int i = 0; i < 4; i++) {
+				int h = ReadByte();
+				if (h < 0)
+					return -1;
+				int w = ReadByte();
+				if (w < 0)
+					return -1;
+				lmses[c].Init(i, h, w);
+			}
+		}
+
+		for (int sampleIndex = 0; sampleIndex < samples; sampleIndex += SliceSamples) {
+			for (int c = 0; c < channels; c++) {
+				int scaleFactor = ReadBits(4);
+				const 1 .. 2048 [16] scaleFactors = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
+				scaleFactor = scaleFactors[scaleFactor];
+				int sampleOffset = sampleIndex * channels + c;
+				for (int s = 0; s < SliceSamples; s++) {
+					int quantized = ReadBits(3);
+					if (quantized < 0)
+						return -1;
+					if (sampleIndex + s >= samples)
+						continue;
+					int dequantized;
+					switch (quantized >> 1) {
+					case 0:
+						dequantized = scaleFactor * 3 + 2 >> 2;
+						break;
+					case 1:
+						dequantized = scaleFactor * 5 + 1 >> 1;
+						break;
+					case 2:
+						dequantized = scaleFactor * 9 + 1 >> 1;
+						break;
+					default:
+						dequantized = scaleFactor * 7;
+						break;
+					}
+					if ((quantized & 1) != 0)
+						dequantized = -dequantized;
+					int reconstructed = Clamp(lmses[c].Predict() + dequantized, short.MinValue, short.MaxValue);
+					lmses[c].Update(reconstructed, dequantized);
+					output[sampleOffset] = reconstructed;
+					sampleOffset += channels;
+				}
+			}
+		}
+		PositionSamples += samples;
+		return samples;
+	}
+
+	/// Returns `true` if all frames have been read.
+	public bool IsEnd() => PositionSamples >= TotalSamples;
+}

@@ -19,6 +19,7 @@ static void LMS_Update(LMS *self, int sample, int residual);
 
 typedef struct {
 	int (*readByte)(QOADecoder *self);
+	void (*seekToByte)(QOADecoder *self, int position);
 } QOADecoderVtbl;
 /**
  * Decoder of the "Quite OK Audio" format.
@@ -34,6 +35,8 @@ struct QOADecoder {
 static void QOADecoder_Construct(QOADecoder *self);
 
 static int QOADecoder_ReadBits(QOADecoder *self, int bits);
+
+static int QOADecoder_GetFrameBytes(const QOADecoder *self);
 
 static int QOADecoder_Clamp(int value, int min, int max);
 
@@ -124,6 +127,11 @@ int QOADecoder_GetSampleRate(const QOADecoder *self)
 	return self->expectedFrameHeader & 16777215;
 }
 
+static int QOADecoder_GetFrameBytes(const QOADecoder *self)
+{
+	return 8 + QOADecoder_GetChannels(self) * 2056;
+}
+
 static int QOADecoder_Clamp(int value, int min, int max)
 {
 	return value < min ? min : value > max ? max : value;
@@ -192,6 +200,13 @@ int QOADecoder_ReadFrame(QOADecoder *self, int16_t *output)
 	}
 	self->positionSamples += samples;
 	return samples;
+}
+
+void QOADecoder_SeekToSample(QOADecoder *self, int position)
+{
+	int frame = position / 5120;
+	self->vtbl->seekToByte(self, frame == 0 ? 12 : 8 + frame * QOADecoder_GetFrameBytes(self));
+	self->positionSamples = frame * 5120;
 }
 
 bool QOADecoder_IsEnd(const QOADecoder *self)

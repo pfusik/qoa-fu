@@ -40,6 +40,11 @@ protected:
 		return b;
 	}
 
+	void seekToByte(int position) override
+	{
+		m_file->seek(position, *p_abort);
+	}
+
 public:
 
 	service_ptr_t<file> &get_file()
@@ -126,12 +131,12 @@ public:
 	void decode_seek(double p_seconds, abort_callback &p_abort)
 	{
 		qoa.set_abort(p_abort);
-		// TODO
+		qoa.seekToSample(static_cast<int>(p_seconds * qoa.getSampleRate()));
 	}
 
 	bool decode_can_seek()
 	{
-		return false; // TODO: qoa.get_file()->can_seek();
+		return qoa.get_file()->can_seek();
 	}
 
 	void retag(const file_info &p_info, abort_callback &p_abort)

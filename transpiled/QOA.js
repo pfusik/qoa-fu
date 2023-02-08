@@ -203,6 +203,18 @@ export class QOADecoder
 	}
 
 	/**
+	 * Seeks to the given time offset.
+	 * Requires the input stream to be seekable with <code>SeekToByte</code>.
+	 * @param position Position from the beginning of the file.
+	 */
+	seekToSample(position)
+	{
+		let frame = position / 5120 | 0;
+		this.seekToByte(frame == 0 ? 12 : 8 + frame * this.#getFrameBytes());
+		this.#positionSamples = frame * 5120;
+	}
+
+	/**
 	 * Returns <code>true</code> if all frames have been read.
 	 */
 	isEnd()

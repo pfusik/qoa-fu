@@ -18,6 +18,12 @@ public abstract class QOADecoder
 	 * Returns the unsigned byte value or -1 on EOF.
 	 */
 	protected abstract int readByte();
+
+	/**
+	 * Seeks the stream to the given position.
+	 * @param position File offset in bytes.
+	 */
+	protected abstract void seekToByte(int position);
 	private int buffer;
 	private int bufferBits;
 
@@ -177,6 +183,18 @@ public abstract class QOADecoder
 		}
 		this.positionSamples += samples;
 		return samples;
+	}
+
+	/**
+	 * Seeks to the given time offset.
+	 * Requires the input stream to be seekable with <code>SeekToByte</code>.
+	 * @param position Position from the beginning of the file.
+	 */
+	public final void seekToSample(int position)
+	{
+		int frame = position / 5120;
+		seekToByte(frame == 0 ? 12 : 8 + frame * getFrameBytes());
+		this.positionSamples = frame * 5120;
 	}
 
 	/**

@@ -145,6 +145,17 @@ class QOADecoder:
 		self._position_samples += samples
 		return samples
 
+	def seek_to_sample(self, position):
+		"""Seeks to the given time offset.
+
+		Requires the input stream to be seekable with `SeekToByte`.
+
+		:param position: Position from the beginning of the file.
+		"""
+		frame = int(position / 5120)
+		self._seek_to_byte(12 if frame == 0 else 8 + frame * self._get_frame_bytes())
+		self._position_samples = frame * 5120
+
 	def is_end(self):
 		"""Returns `true` if all frames have been read."""
 		return self._position_samples >= self._total_samples

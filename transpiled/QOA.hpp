@@ -60,6 +60,12 @@ public:
 	 */
 	int readFrame(int16_t * output);
 	/**
+	 * Seeks to the given time offset.
+	 * Requires the input stream to be seekable with <code>SeekToByte</code>.
+	 * @param position Position from the beginning of the file.
+	 */
+	void seekToSample(int position);
+	/**
 	 * Returns <code>true</code> if all frames have been read.
 	 */
 	bool isEnd() const;
@@ -74,6 +80,11 @@ protected:
 	 * Returns the unsigned byte value or -1 on EOF.
 	 */
 	virtual int readByte() = 0;
+	/**
+	 * Seeks the stream to the given position.
+	 * @param position File offset in bytes.
+	 */
+	virtual void seekToByte(int position) = 0;
 private:
 	int buffer;
 	int bufferBits;

@@ -149,6 +149,13 @@ int QOADecoder::readFrame(int16_t * output)
 	return samples;
 }
 
+void QOADecoder::seekToSample(int position)
+{
+	int frame = position / 5120;
+	seekToByte(frame == 0 ? 12 : 8 + frame * getFrameBytes());
+	this->positionSamples = frame * 5120;
+}
+
 bool QOADecoder::isEnd() const
 {
 	return this->positionSamples >= this->totalSamples;

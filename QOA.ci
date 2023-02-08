@@ -57,6 +57,11 @@ public abstract class QOADecoder
 	/// Returns the unsigned byte value or -1 on EOF.
 	protected abstract int ReadByte!();
 
+	/// Seeks the stream to the given position.
+	protected abstract void SeekToByte!(
+		/// File offset in bytes.
+		int position);
+
 	/// Constructs the decoder.
 	/// The decoder can be used for several files, one after another.
 	public QOADecoder()
@@ -195,6 +200,17 @@ public abstract class QOADecoder
 		}
 		PositionSamples += samples;
 		return samples;
+	}
+
+	/// Seeks to the given time offset.
+	/// Requires the input stream to be seekable with `SeekToByte`.
+	public void SeekToSample!(
+		/// Position from the beginning of the file.
+		int position)
+	{
+		int frame = position / FrameSamples;
+		SeekToByte(frame == 0 ? 12 : 8 + frame * GetFrameBytes());
+		PositionSamples = frame * FrameSamples;
 	}
 
 	/// Returns `true` if all frames have been read.

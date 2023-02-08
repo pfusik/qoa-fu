@@ -54,6 +54,14 @@ int QOADecoder_GetSampleRate(const QOADecoder *self);
 int QOADecoder_ReadFrame(QOADecoder *self, int16_t *output);
 
 /**
+ * Seeks to the given time offset.
+ * Requires the input stream to be seekable with <code>SeekToByte</code>.
+ * @param self This <code>QOADecoder</code>.
+ * @param position Position from the beginning of the file.
+ */
+void QOADecoder_SeekToSample(QOADecoder *self, int position);
+
+/**
  * Returns <code>true</code> if all frames have been read.
  * @param self This <code>QOADecoder</code>.
  */

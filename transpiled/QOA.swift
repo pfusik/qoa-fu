@@ -49,6 +49,13 @@ public class QOADecoder
 		preconditionFailure("Abstract method called")
 	}
 
+	/// Seeks the stream to the given position.
+	/// - parameter position File offset in bytes.
+	open func seekToByte(_ position : Int)
+	{
+		preconditionFailure("Abstract method called")
+	}
+
 	private var buffer : Int = 0
 
 	private var bufferBits : Int = 0
@@ -209,6 +216,16 @@ public class QOADecoder
 		}
 		self.positionSamples += samples
 		return samples
+	}
+
+	/// Seeks to the given time offset.
+	/// Requires the input stream to be seekable with `SeekToByte`.
+	/// - parameter position Position from the beginning of the file.
+	public func seekToSample(_ position : Int)
+	{
+		let frame : Int = position / 5120
+		seekToByte(frame == 0 ? 12 : 8 + frame * getFrameBytes())
+		self.positionSamples = frame * 5120
 	}
 
 	/// Returns `true` if all frames have been read.

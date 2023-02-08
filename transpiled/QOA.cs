@@ -43,6 +43,10 @@ public abstract class QOADecoder
 	/// <remarks>Returns the unsigned byte value or -1 on EOF.</remarks>
 	protected abstract int ReadByte();
 
+	/// <summary>Seeks the stream to the given position.</summary>
+	/// <param name="position">File offset in bytes.</param>
+	protected abstract void SeekToByte(int position);
+
 	int Buffer;
 
 	int BufferBits;
@@ -177,6 +181,16 @@ public abstract class QOADecoder
 		}
 		this.PositionSamples += samples;
 		return samples;
+	}
+
+	/// <summary>Seeks to the given time offset.</summary>
+	/// <remarks>Requires the input stream to be seekable with <c>SeekToByte</c>.</remarks>
+	/// <param name="position">Position from the beginning of the file.</param>
+	public void SeekToSample(int position)
+	{
+		int frame = position / 5120;
+		SeekToByte(frame == 0 ? 12 : 8 + frame * GetFrameBytes());
+		this.PositionSamples = frame * 5120;
 	}
 
 	/// <summary>Returns <see langword="true" /> if all frames have been read.</summary>

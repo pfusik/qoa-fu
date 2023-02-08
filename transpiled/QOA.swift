@@ -169,6 +169,9 @@ public class QOADecoder
 		for sampleIndex in stride(from: 0, to: samples, by: 20) {
 			for c in 0..<channels {
 				var scaleFactor : Int = readBits(4)
+				if scaleFactor < 0 {
+					return -1
+				}
 				scaleFactor = Int(QOADecoder.readFrameScaleFactors[scaleFactor])
 				var sampleOffset : Int = sampleIndex * channels + c
 				for s in 0..<20 {

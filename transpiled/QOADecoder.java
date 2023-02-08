@@ -141,6 +141,8 @@ public abstract class QOADecoder
 		for (int sampleIndex = 0; sampleIndex < samples; sampleIndex += 20) {
 			for (int c = 0; c < channels; c++) {
 				int scaleFactor = readBits(4);
+				if (scaleFactor < 0)
+					return -1;
 				scaleFactor = READ_FRAME_SCALE_FACTORS[scaleFactor];
 				int sampleOffset = sampleIndex * channels + c;
 				for (int s = 0; s < 20; s++) {

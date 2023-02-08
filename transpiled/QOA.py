@@ -117,6 +117,8 @@ class QOADecoder:
 		for sample_index in range(0, samples, 20):
 			for c in range(channels):
 				scale_factor = self._read_bits(4)
+				if scale_factor < 0:
+					return -1
 				scale_factor = QOADecoder._READ_FRAME_SCALE_FACTORS[scale_factor]
 				sample_offset = sample_index * channels + c
 				for s in range(20):

@@ -155,6 +155,8 @@ int QOADecoder_ReadFrame(QOADecoder *self, int16_t *output)
 	for (int sampleIndex = 0; sampleIndex < samples; sampleIndex += 20) {
 		for (int c = 0; c < channels; c++) {
 			int scaleFactor = QOADecoder_ReadBits(self, 4);
+			if (scaleFactor < 0)
+				return -1;
 			static const uint16_t SCALE_FACTORS[16] = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
 			scaleFactor = SCALE_FACTORS[scaleFactor];
 			int sampleOffset = sampleIndex * channels + c;

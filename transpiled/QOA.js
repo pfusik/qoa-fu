@@ -164,6 +164,8 @@ export class QOADecoder
 		for (let sampleIndex = 0; sampleIndex < samples; sampleIndex += 20) {
 			for (let c = 0; c < channels; c++) {
 				let scaleFactor = this.#readBits(4);
+				if (scaleFactor < 0)
+					return -1;
 				scaleFactor = QOADecoder.READ_FRAME_SCALE_FACTORS[scaleFactor];
 				let sampleOffset = sampleIndex * channels + c;
 				for (let s = 0; s < 20; s++) {

@@ -1,4 +1,4 @@
-TRANSPILED = $(addprefix transpiled/QOA., c cpp cs js py swift) transpiled/QOADecoder.java
+TRANSPILED = $(addprefix transpiled/QOA., c cpp cs js py swift ts) transpiled/QOADecoder.java
 
 all: $(TRANSPILED)
 

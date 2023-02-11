@@ -61,7 +61,7 @@ public:
 class input_qoa : public input_stubs
 {
 	FooQOADecoder qoa;
-	int16_t samples[QOADecoder::frameSamples * QOADecoder::maxChannels];
+	int16_t samples[QOADecoder::maxFrameSamples * QOADecoder::maxChannels];
 
 public:
 

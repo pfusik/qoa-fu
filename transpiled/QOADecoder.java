@@ -96,14 +96,14 @@ public abstract class QOADecoder
 
 	private static final int SLICE_SAMPLES = 20;
 
-	private static final int FRAME_SLICES = 256;
+	private static final int MAX_FRAME_SLICES = 256;
 
 	/**
-	 * Number of samples per frame.
+	 * Maximum number of samples per frame.
 	 */
-	public static final int FRAME_SAMPLES = 5120;
+	public static final int MAX_FRAME_SAMPLES = 5120;
 
-	private int getFrameBytes()
+	private int getMaxFrameBytes()
 	{
 		return 8 + getChannels() * 2056;
 	}
@@ -116,17 +116,17 @@ public abstract class QOADecoder
 	/**
 	 * Reads and decodes a frame.
 	 * Returns the number of samples per channel.
-	 * @param output PCM samples.
+	 * @param samples PCM samples.
 	 */
-	public final int readFrame(short[] output)
+	public final int readFrame(short[] samples)
 	{
 		if (this.positionSamples > 0 && readBits(32) != this.expectedFrameHeader)
 			return -1;
-		int samples = readBits(16);
-		if (samples <= 0 || samples > 5120 || samples > this.totalSamples - this.positionSamples)
+		int samplesCount = readBits(16);
+		if (samplesCount <= 0 || samplesCount > 5120 || samplesCount > this.totalSamples - this.positionSamples)
 			return -1;
 		int channels = getChannels();
-		int slices = (samples + 19) / 20;
+		int slices = (samplesCount + 19) / 20;
 		if (readBits(16) != 8 + channels * (8 + slices * 8))
 			return -1;
 		final LMS[] lmses = new LMS[8];
@@ -144,7 +144,7 @@ public abstract class QOADecoder
 				lmses[c].init(i, h, w);
 			}
 		}
-		for (int sampleIndex = 0; sampleIndex < samples; sampleIndex += 20) {
+		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			for (int c = 0; c < channels; c++) {
 				int scaleFactor = readBits(4);
 				if (scaleFactor < 0)
@@ -155,7 +155,7 @@ public abstract class QOADecoder
 					int quantized = readBits(3);
 					if (quantized < 0)
 						return -1;
-					if (sampleIndex + s >= samples)
+					if (sampleIndex + s >= samplesCount)
 						continue;
 					int dequantized;
 					switch (quantized >> 1) {
@@ -176,13 +176,13 @@ public abstract class QOADecoder
 						dequantized = -dequantized;
 					int reconstructed = clamp(lmses[c].predict() + dequantized, -32768, 32767);
 					lmses[c].update(reconstructed, dequantized);
-					output[sampleOffset] = (short) reconstructed;
+					samples[sampleOffset] = (short) reconstructed;
 					sampleOffset += channels;
 				}
 			}
 		}
-		this.positionSamples += samples;
-		return samples;
+		this.positionSamples += samplesCount;
+		return samplesCount;
 	}
 
 	/**
@@ -193,7 +193,7 @@ public abstract class QOADecoder
 	public final void seekToSample(int position)
 	{
 		int frame = position / 5120;
-		seekToByte(frame == 0 ? 12 : 8 + frame * getFrameBytes());
+		seekToByte(frame == 0 ? 12 : 8 + frame * getMaxFrameBytes());
 		this.positionSamples = frame * 5120;
 	}
 

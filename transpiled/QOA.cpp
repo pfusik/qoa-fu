@@ -74,7 +74,7 @@ int QOADecoder::getSampleRate() const
 	return this->expectedFrameHeader & 16777215;
 }
 
-int QOADecoder::getFrameBytes() const
+int QOADecoder::getMaxFrameBytes() const
 {
 	return 8 + getChannels() * 2056;
 }
@@ -84,15 +84,15 @@ int QOADecoder::clamp(int value, int min, int max)
 	return value < min ? min : value > max ? max : value;
 }
 
-int QOADecoder::readFrame(int16_t * output)
+int QOADecoder::readFrame(int16_t * samples)
 {
 	if (this->positionSamples > 0 && readBits(32) != this->expectedFrameHeader)
 		return -1;
-	int samples = readBits(16);
-	if (samples <= 0 || samples > 5120 || samples > this->totalSamples - this->positionSamples)
+	int samplesCount = readBits(16);
+	if (samplesCount <= 0 || samplesCount > 5120 || samplesCount > this->totalSamples - this->positionSamples)
 		return -1;
 	int channels = getChannels();
-	int slices = (samples + 19) / 20;
+	int slices = (samplesCount + 19) / 20;
 	if (readBits(16) != 8 + channels * (8 + slices * 8))
 		return -1;
 	std::array<LMS, 8> lmses;
@@ -107,7 +107,7 @@ int QOADecoder::readFrame(int16_t * output)
 			lmses[c].init(i, h, w);
 		}
 	}
-	for (int sampleIndex = 0; sampleIndex < samples; sampleIndex += 20) {
+	for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 		for (int c = 0; c < channels; c++) {
 			int scaleFactor = readBits(4);
 			if (scaleFactor < 0)
@@ -119,7 +119,7 @@ int QOADecoder::readFrame(int16_t * output)
 				int quantized = readBits(3);
 				if (quantized < 0)
 					return -1;
-				if (sampleIndex + s >= samples)
+				if (sampleIndex + s >= samplesCount)
 					continue;
 				int dequantized;
 				switch (quantized >> 1) {
@@ -140,19 +140,19 @@ int QOADecoder::readFrame(int16_t * output)
 					dequantized = -dequantized;
 				int reconstructed = clamp(lmses[c].predict() + dequantized, -32768, 32767);
 				lmses[c].update(reconstructed, dequantized);
-				output[sampleOffset] = static_cast<int16_t>(reconstructed);
+				samples[sampleOffset] = static_cast<int16_t>(reconstructed);
 				sampleOffset += channels;
 			}
 		}
 	}
-	this->positionSamples += samples;
-	return samples;
+	this->positionSamples += samplesCount;
+	return samplesCount;
 }
 
 void QOADecoder::seekToSample(int position)
 {
 	int frame = position / 5120;
-	seekToByte(frame == 0 ? 12 : 8 + frame * getFrameBytes());
+	seekToByte(frame == 0 ? 12 : 8 + frame * getMaxFrameBytes());
 	this->positionSamples = frame * 5120;
 }
 

@@ -127,12 +127,12 @@ public class QOADecoder
 
 	private static let sliceSamples = 20
 
-	private static let frameSlices = 256
+	private static let maxFrameSlices = 256
 
-	/// Number of samples per frame.
-	public static let frameSamples = 5120
+	/// Maximum number of samples per frame.
+	public static let maxFrameSamples = 5120
 
-	private func getFrameBytes() -> Int
+	private func getMaxFrameBytes() -> Int
 	{
 		return 8 + getChannels() * 2056
 	}
@@ -144,18 +144,18 @@ public class QOADecoder
 
 	/// Reads and decodes a frame.
 	/// Returns the number of samples per channel.
-	/// - parameter output PCM samples.
-	public func readFrame(_ output : ArrayRef<Int16>?) -> Int
+	/// - parameter samples PCM samples.
+	public func readFrame(_ samples : ArrayRef<Int16>?) -> Int
 	{
 		if self.positionSamples > 0 && readBits(32) != self.expectedFrameHeader {
 			return -1
 		}
-		let samples : Int = readBits(16)
-		if samples <= 0 || samples > 5120 || samples > self.totalSamples - self.positionSamples {
+		let samplesCount : Int = readBits(16)
+		if samplesCount <= 0 || samplesCount > 5120 || samplesCount > self.totalSamples - self.positionSamples {
 			return -1
 		}
 		let channels : Int = getChannels()
-		let slices : Int = (samples + 19) / 20
+		let slices : Int = (samplesCount + 19) / 20
 		if readBits(16) != 8 + channels * (8 + slices * 8) {
 			return -1
 		}
@@ -173,7 +173,7 @@ public class QOADecoder
 				lmses[c].init_(i, h, w)
 			}
 		}
-		for sampleIndex in stride(from: 0, to: samples, by: 20) {
+		for sampleIndex in stride(from: 0, to: samplesCount, by: 20) {
 			for c in 0..<channels {
 				var scaleFactor : Int = readBits(4)
 				if scaleFactor < 0 {
@@ -186,7 +186,7 @@ public class QOADecoder
 					if quantized < 0 {
 						return -1
 					}
-					if sampleIndex + s >= samples {
+					if sampleIndex + s >= samplesCount {
 						continue
 					}
 					var dequantized : Int
@@ -209,13 +209,13 @@ public class QOADecoder
 					}
 					let reconstructed : Int = QOADecoder.clamp(lmses[c].predict() + dequantized, -32768, 32767)
 					lmses[c].update(reconstructed, dequantized)
-					output![sampleOffset] = Int16(reconstructed)
+					samples![sampleOffset] = Int16(reconstructed)
 					sampleOffset += channels
 				}
 			}
 		}
-		self.positionSamples += samples
-		return samples
+		self.positionSamples += samplesCount
+		return samplesCount
 	}
 
 	/// Seeks to the given time offset.
@@ -224,7 +224,7 @@ public class QOADecoder
 	public func seekToSample(_ position : Int)
 	{
 		let frame : Int = position / 5120
-		seekToByte(frame == 0 ? 12 : 8 + frame * getFrameBytes())
+		seekToByte(frame == 0 ? 12 : 8 + frame * getMaxFrameBytes())
 		self.positionSamples = frame * 5120
 	}
 

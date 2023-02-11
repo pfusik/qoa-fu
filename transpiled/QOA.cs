@@ -104,27 +104,27 @@ public abstract class QOADecoder
 
 	const int SliceSamples = 20;
 
-	const int FrameSlices = 256;
+	const int MaxFrameSlices = 256;
 
-	/// <summary>Number of samples per frame.</summary>
-	public const int FrameSamples = 5120;
+	/// <summary>Maximum number of samples per frame.</summary>
+	public const int MaxFrameSamples = 5120;
 
-	int GetFrameBytes() => 8 + GetChannels() * 2056;
+	int GetMaxFrameBytes() => 8 + GetChannels() * 2056;
 
 	static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
 
 	/// <summary>Reads and decodes a frame.</summary>
 	/// <remarks>Returns the number of samples per channel.</remarks>
-	/// <param name="output">PCM samples.</param>
-	public int ReadFrame(short[] output)
+	/// <param name="samples">PCM samples.</param>
+	public int ReadFrame(short[] samples)
 	{
 		if (this.PositionSamples > 0 && ReadBits(32) != this.ExpectedFrameHeader)
 			return -1;
-		int samples = ReadBits(16);
-		if (samples <= 0 || samples > 5120 || samples > this.TotalSamples - this.PositionSamples)
+		int samplesCount = ReadBits(16);
+		if (samplesCount <= 0 || samplesCount > 5120 || samplesCount > this.TotalSamples - this.PositionSamples)
 			return -1;
 		int channels = GetChannels();
-		int slices = (samples + 19) / 20;
+		int slices = (samplesCount + 19) / 20;
 		if (ReadBits(16) != 8 + channels * (8 + slices * 8))
 			return -1;
 		LMS[] lmses = new LMS[8];
@@ -142,7 +142,7 @@ public abstract class QOADecoder
 				lmses[c].Init(i, h, w);
 			}
 		}
-		for (int sampleIndex = 0; sampleIndex < samples; sampleIndex += 20) {
+		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			for (int c = 0; c < channels; c++) {
 				int scaleFactor = ReadBits(4);
 				if (scaleFactor < 0)
@@ -153,7 +153,7 @@ public abstract class QOADecoder
 					int quantized = ReadBits(3);
 					if (quantized < 0)
 						return -1;
-					if (sampleIndex + s >= samples)
+					if (sampleIndex + s >= samplesCount)
 						continue;
 					int dequantized;
 					switch (quantized >> 1) {
@@ -174,13 +174,13 @@ public abstract class QOADecoder
 						dequantized = -dequantized;
 					int reconstructed = Clamp(lmses[c].Predict() + dequantized, -32768, 32767);
 					lmses[c].Update(reconstructed, dequantized);
-					output[sampleOffset] = (short) reconstructed;
+					samples[sampleOffset] = (short) reconstructed;
 					sampleOffset += channels;
 				}
 			}
 		}
-		this.PositionSamples += samples;
-		return samples;
+		this.PositionSamples += samplesCount;
+		return samplesCount;
 	}
 
 	/// <summary>Seeks to the given time offset.</summary>
@@ -189,7 +189,7 @@ public abstract class QOADecoder
 	public void SeekToSample(int position)
 	{
 		int frame = position / 5120;
-		SeekToByte(frame == 0 ? 12 : 8 + frame * GetFrameBytes());
+		SeekToByte(frame == 0 ? 12 : 8 + frame * GetMaxFrameBytes());
 		this.PositionSamples = frame * 5120;
 	}
 

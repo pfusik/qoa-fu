@@ -121,12 +121,12 @@ public abstract class QOADecoder
 	public int GetSampleRate() => ExpectedFrameHeader & 0xffffff;
 
 	const int SliceSamples = 20;
-	const int FrameSlices = 256;
+	const int MaxFrameSlices = 256;
 
-	/// Number of samples per frame.
-	public const int FrameSamples = FrameSlices * SliceSamples;
+	/// Maximum number of samples per frame.
+	public const int MaxFrameSamples = MaxFrameSlices * SliceSamples;
 
-	int GetFrameBytes() => 8 + GetChannels() * (8 + FrameSlices * 8);
+	int GetMaxFrameBytes() => 8 + GetChannels() * (8 + MaxFrameSlices * 8);
 
 	static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
 
@@ -135,15 +135,15 @@ public abstract class QOADecoder
 	public int ReadFrame!(
 		/// PCM samples.
 		/// The buffer must accommodate `FrameSamples` * `GetChannels()` elements.
-		short[]! output)
+		short[]! samples)
 	{
 		if (PositionSamples > 0 && ReadBits(32) != ExpectedFrameHeader)
 			return -1;
-		int samples = ReadBits(16);
-		if (samples <= 0 || samples > FrameSamples || samples > TotalSamples - PositionSamples)
+		int samplesCount = ReadBits(16);
+		if (samplesCount <= 0 || samplesCount > MaxFrameSamples || samplesCount > TotalSamples - PositionSamples)
 			return -1;
 		int channels = GetChannels();
-		int slices = (samples + (SliceSamples - 1)) / SliceSamples;
+		int slices = (samplesCount + (SliceSamples - 1)) / SliceSamples;
 		if (ReadBits(16) != 8 + channels * (8 + slices * 8))
 			return -1;
 
@@ -160,7 +160,7 @@ public abstract class QOADecoder
 			}
 		}
 
-		for (int sampleIndex = 0; sampleIndex < samples; sampleIndex += SliceSamples) {
+		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += SliceSamples) {
 			for (int c = 0; c < channels; c++) {
 				int scaleFactor = ReadBits(4);
 				if (scaleFactor < 0)
@@ -172,7 +172,7 @@ public abstract class QOADecoder
 					int quantized = ReadBits(3);
 					if (quantized < 0)
 						return -1;
-					if (sampleIndex + s >= samples)
+					if (sampleIndex + s >= samplesCount)
 						continue;
 					int dequantized;
 					switch (quantized >> 1) {
@@ -193,13 +193,13 @@ public abstract class QOADecoder
 						dequantized = -dequantized;
 					int reconstructed = Clamp(lmses[c].Predict() + dequantized, short.MinValue, short.MaxValue);
 					lmses[c].Update(reconstructed, dequantized);
-					output[sampleOffset] = reconstructed;
+					samples[sampleOffset] = reconstructed;
 					sampleOffset += channels;
 				}
 			}
 		}
-		PositionSamples += samples;
-		return samples;
+		PositionSamples += samplesCount;
+		return samplesCount;
 	}
 
 	/// Seeks to the given time offset.
@@ -208,9 +208,9 @@ public abstract class QOADecoder
 		/// Position from the beginning of the file.
 		int position)
 	{
-		int frame = position / FrameSamples;
-		SeekToByte(frame == 0 ? 12 : 8 + frame * GetFrameBytes());
-		PositionSamples = frame * FrameSamples;
+		int frame = position / MaxFrameSamples;
+		SeekToByte(frame == 0 ? 12 : 8 + frame * GetMaxFrameBytes());
+		PositionSamples = frame * MaxFrameSamples;
 	}
 
 	/// Returns `true` if all frames have been read.

@@ -50,15 +50,15 @@ public:
 	 */
 	int getSampleRate() const;
 	/**
-	 * Number of samples per frame.
+	 * Maximum number of samples per frame.
 	 */
-	static constexpr int frameSamples = 5120;
+	static constexpr int maxFrameSamples = 5120;
 	/**
 	 * Reads and decodes a frame.
 	 * Returns the number of samples per channel.
-	 * @param output PCM samples.
+	 * @param samples PCM samples.
 	 */
-	int readFrame(int16_t * output);
+	int readFrame(int16_t * samples);
 	/**
 	 * Seeks to the given time offset.
 	 * Requires the input stream to be seekable with <code>SeekToByte</code>.
@@ -93,7 +93,7 @@ private:
 	int expectedFrameHeader;
 	int positionSamples;
 	static constexpr int sliceSamples = 20;
-	static constexpr int frameSlices = 256;
-	int getFrameBytes() const;
+	static constexpr int maxFrameSlices = 256;
+	int getMaxFrameBytes() const;
 	static int clamp(int value, int min, int max);
 };

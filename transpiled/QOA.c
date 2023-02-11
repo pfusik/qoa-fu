@@ -36,7 +36,7 @@ static void QOADecoder_Construct(QOADecoder *self);
 
 static int QOADecoder_ReadBits(QOADecoder *self, int bits);
 
-static int QOADecoder_GetFrameBytes(const QOADecoder *self);
+static int QOADecoder_GetMaxFrameBytes(const QOADecoder *self);
 
 static int QOADecoder_Clamp(int value, int min, int max);
 
@@ -127,7 +127,7 @@ int QOADecoder_GetSampleRate(const QOADecoder *self)
 	return self->expectedFrameHeader & 16777215;
 }
 
-static int QOADecoder_GetFrameBytes(const QOADecoder *self)
+static int QOADecoder_GetMaxFrameBytes(const QOADecoder *self)
 {
 	return 8 + QOADecoder_GetChannels(self) * 2056;
 }
@@ -137,15 +137,15 @@ static int QOADecoder_Clamp(int value, int min, int max)
 	return value < min ? min : value > max ? max : value;
 }
 
-int QOADecoder_ReadFrame(QOADecoder *self, int16_t *output)
+int QOADecoder_ReadFrame(QOADecoder *self, int16_t *samples)
 {
 	if (self->positionSamples > 0 && QOADecoder_ReadBits(self, 32) != self->expectedFrameHeader)
 		return -1;
-	int samples = QOADecoder_ReadBits(self, 16);
-	if (samples <= 0 || samples > 5120 || samples > self->totalSamples - self->positionSamples)
+	int samplesCount = QOADecoder_ReadBits(self, 16);
+	if (samplesCount <= 0 || samplesCount > 5120 || samplesCount > self->totalSamples - self->positionSamples)
 		return -1;
 	int channels = QOADecoder_GetChannels(self);
-	int slices = (samples + 19) / 20;
+	int slices = (samplesCount + 19) / 20;
 	if (QOADecoder_ReadBits(self, 16) != 8 + channels * (8 + slices * 8))
 		return -1;
 	LMS lmses[8];
@@ -160,7 +160,7 @@ int QOADecoder_ReadFrame(QOADecoder *self, int16_t *output)
 			LMS_Init(&lmses[c], i, h, w);
 		}
 	}
-	for (int sampleIndex = 0; sampleIndex < samples; sampleIndex += 20) {
+	for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 		for (int c = 0; c < channels; c++) {
 			int scaleFactor = QOADecoder_ReadBits(self, 4);
 			if (scaleFactor < 0)
@@ -172,7 +172,7 @@ int QOADecoder_ReadFrame(QOADecoder *self, int16_t *output)
 				int quantized = QOADecoder_ReadBits(self, 3);
 				if (quantized < 0)
 					return -1;
-				if (sampleIndex + s >= samples)
+				if (sampleIndex + s >= samplesCount)
 					continue;
 				int dequantized;
 				switch (quantized >> 1) {
@@ -193,19 +193,19 @@ int QOADecoder_ReadFrame(QOADecoder *self, int16_t *output)
 					dequantized = -dequantized;
 				int reconstructed = QOADecoder_Clamp(LMS_Predict(&lmses[c]) + dequantized, -32768, 32767);
 				LMS_Update(&lmses[c], reconstructed, dequantized);
-				output[sampleOffset] = (int16_t) reconstructed;
+				samples[sampleOffset] = (int16_t) reconstructed;
 				sampleOffset += channels;
 			}
 		}
 	}
-	self->positionSamples += samples;
-	return samples;
+	self->positionSamples += samplesCount;
+	return samplesCount;
 }
 
 void QOADecoder_SeekToSample(QOADecoder *self, int position)
 {
 	int frame = position / 5120;
-	self->vtbl->seekToByte(self, frame == 0 ? 12 : 8 + frame * QOADecoder_GetFrameBytes(self));
+	self->vtbl->seekToByte(self, frame == 0 ? 12 : 8 + frame * QOADecoder_GetMaxFrameBytes(self));
 	self->positionSamples = frame * 5120;
 }
 

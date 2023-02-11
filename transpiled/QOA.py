@@ -78,30 +78,30 @@ class QOADecoder:
 		"""Returns the sample rate in Hz."""
 		return self._expected_frame_header & 16777215
 
-	FRAME_SAMPLES = 5120
-	"""Number of samples per frame."""
+	MAX_FRAME_SAMPLES = 5120
+	"""Maximum number of samples per frame."""
 
-	def _get_frame_bytes(self):
+	def _get_max_frame_bytes(self):
 		return 8 + self.get_channels() * 2056
 
 	@staticmethod
 	def _clamp(value, min, max):
 		return min if value < min else max if value > max else value
 
-	def read_frame(self, output):
+	def read_frame(self, samples):
 		"""Reads and decodes a frame.
 
 		Returns the number of samples per channel.
 
-		:param output: PCM samples.
+		:param samples: PCM samples.
 		"""
 		if self._position_samples > 0 and self._read_bits(32) != self._expected_frame_header:
 			return -1
-		samples = self._read_bits(16)
-		if samples <= 0 or samples > 5120 or samples > self._total_samples - self._position_samples:
+		samples_count = self._read_bits(16)
+		if samples_count <= 0 or samples_count > 5120 or samples_count > self._total_samples - self._position_samples:
 			return -1
 		channels = self.get_channels()
-		slices = int((samples + 19) / 20)
+		slices = int((samples_count + 19) / 20)
 		if self._read_bits(16) != 8 + channels * (8 + slices * 8):
 			return -1
 		lmses = [ _LMS() for _ in range(8) ]
@@ -114,7 +114,7 @@ class QOADecoder:
 				if w < 0:
 					return -1
 				lmses[c]._init(i, h, w)
-		for sample_index in range(0, samples, 20):
+		for sample_index in range(0, samples_count, 20):
 			for c in range(channels):
 				scale_factor = self._read_bits(4)
 				if scale_factor < 0:
@@ -125,7 +125,7 @@ class QOADecoder:
 					quantized = self._read_bits(3)
 					if quantized < 0:
 						return -1
-					if sample_index + s >= samples:
+					if sample_index + s >= samples_count:
 						continue
 					match quantized >> 1:
 						case 0:
@@ -140,10 +140,10 @@ class QOADecoder:
 						dequantized = -dequantized
 					reconstructed = QOADecoder._clamp(lmses[c]._predict() + dequantized, -32768, 32767)
 					lmses[c]._update(reconstructed, dequantized)
-					output[sample_offset] = reconstructed
+					samples[sample_offset] = reconstructed
 					sample_offset += channels
-		self._position_samples += samples
-		return samples
+		self._position_samples += samples_count
+		return samples_count
 
 	def seek_to_sample(self, position):
 		"""Seeks to the given time offset.
@@ -153,7 +153,7 @@ class QOADecoder:
 		:param position: Position from the beginning of the file.
 		"""
 		frame = int(position / 5120)
-		self._seek_to_byte(12 if frame == 0 else 8 + frame * self._get_frame_bytes())
+		self._seek_to_byte(12 if frame == 0 else 8 + frame * self._get_max_frame_bytes())
 		self._position_samples = frame * 5120
 
 	def is_end(self):

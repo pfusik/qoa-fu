@@ -41,17 +41,17 @@ int QOADecoder_GetChannels(const QOADecoder *self);
 int QOADecoder_GetSampleRate(const QOADecoder *self);
 
 /**
- * Number of samples per frame.
+ * Maximum number of samples per frame.
  */
-#define QOADecoder_FRAME_SAMPLES 5120
+#define QOADecoder_MAX_FRAME_SAMPLES 5120
 
 /**
  * Reads and decodes a frame.
  * Returns the number of samples per channel.
  * @param self This <code>QOADecoder</code>.
- * @param output PCM samples.
+ * @param samples PCM samples.
  */
-int QOADecoder_ReadFrame(QOADecoder *self, int16_t *output);
+int QOADecoder_ReadFrame(QOADecoder *self, int16_t *samples);
 
 /**
  * Seeks to the given time offset.

@@ -129,14 +129,14 @@ export abstract class QOADecoder
 
 	private static readonly SLICE_SAMPLES: number = 20;
 
-	private static readonly FRAME_SLICES: number = 256;
+	private static readonly MAX_FRAME_SLICES: number = 256;
 
 	/**
-	 * Number of samples per frame.
+	 * Maximum number of samples per frame.
 	 */
-	public static readonly FRAME_SAMPLES: number = 5120;
+	public static readonly MAX_FRAME_SAMPLES: number = 5120;
 
-	private getFrameBytes(): number
+	private getMaxFrameBytes(): number
 	{
 		return 8 + this.getChannels() * 2056;
 	}
@@ -149,17 +149,17 @@ export abstract class QOADecoder
 	/**
 	 * Reads and decodes a frame.
 	 * Returns the number of samples per channel.
-	 * @param output PCM samples.
+	 * @param samples PCM samples.
 	 */
-	public readFrame(output: Int16Array | null): number
+	public readFrame(samples: Int16Array | null): number
 	{
 		if (this.positionSamples > 0 && this.readBits(32) != this.expectedFrameHeader)
 			return -1;
-		let samples: number = this.readBits(16);
-		if (samples <= 0 || samples > 5120 || samples > this.totalSamples - this.positionSamples)
+		let samplesCount: number = this.readBits(16);
+		if (samplesCount <= 0 || samplesCount > 5120 || samplesCount > this.totalSamples - this.positionSamples)
 			return -1;
 		let channels: number = this.getChannels();
-		let slices: number = (samples + 19) / 20 | 0;
+		let slices: number = (samplesCount + 19) / 20 | 0;
 		if (this.readBits(16) != 8 + channels * (8 + slices * 8))
 			return -1;
 		const lmses: LMS[] = new Array(8);
@@ -177,7 +177,7 @@ export abstract class QOADecoder
 				lmses[c].init(i, h, w);
 			}
 		}
-		for (let sampleIndex: number = 0; sampleIndex < samples; sampleIndex += 20) {
+		for (let sampleIndex: number = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			for (let c: number = 0; c < channels; c++) {
 				let scaleFactor: number = this.readBits(4);
 				if (scaleFactor < 0)
@@ -188,7 +188,7 @@ export abstract class QOADecoder
 					let quantized: number = this.readBits(3);
 					if (quantized < 0)
 						return -1;
-					if (sampleIndex + s >= samples)
+					if (sampleIndex + s >= samplesCount)
 						continue;
 					let dequantized: number;
 					switch (quantized >> 1) {
@@ -209,13 +209,13 @@ export abstract class QOADecoder
 						dequantized = -dequantized;
 					let reconstructed: number = QOADecoder.clamp(lmses[c].predict() + dequantized, -32768, 32767);
 					lmses[c].update(reconstructed, dequantized);
-					output[sampleOffset] = reconstructed;
+					samples[sampleOffset] = reconstructed;
 					sampleOffset += channels;
 				}
 			}
 		}
-		this.positionSamples += samples;
-		return samples;
+		this.positionSamples += samplesCount;
+		return samplesCount;
 	}
 
 	/**
@@ -226,7 +226,7 @@ export abstract class QOADecoder
 	public seekToSample(position: number): void
 	{
 		let frame: number = position / 5120 | 0;
-		this.seekToByte(frame == 0 ? 12 : 8 + frame * this.getFrameBytes());
+		this.seekToByte(frame == 0 ? 12 : 8 + frame * this.getMaxFrameBytes());
 		this.positionSamples = frame * 5120;
 	}
 

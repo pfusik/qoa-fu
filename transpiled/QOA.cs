@@ -4,15 +4,9 @@
 class LMS
 {
 
-	readonly int[] History = new int[4];
+	internal readonly int[] History = new int[4];
 
-	readonly int[] Weights = new int[4];
-
-	internal void Init(int i, int h, int w)
-	{
-		this.History[i] = ((h ^ 128) - 128) << 8;
-		this.Weights[i] = ((w ^ 128) - 128) << 8;
-	}
+	internal readonly int[] Weights = new int[4];
 
 	internal int Predict() => (this.History[0] * this.Weights[0] + this.History[1] * this.Weights[1] + this.History[2] * this.Weights[2] + this.History[3] * this.Weights[3]) >> 13;
 
@@ -109,9 +103,23 @@ public abstract class QOADecoder
 	/// <summary>Maximum number of samples per frame.</summary>
 	public const int MaxFrameSamples = 5120;
 
-	int GetMaxFrameBytes() => 8 + GetChannels() * 2056;
+	int GetMaxFrameBytes() => 8 + GetChannels() * 2064;
 
 	static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
+
+	bool ReadLMS(int[] result)
+	{
+		for (int i = 0; i < 4; i++) {
+			int hi = ReadByte();
+			if (hi < 0)
+				return false;
+			int lo = ReadByte();
+			if (lo < 0)
+				return false;
+			result[i] = ((hi ^ 128) - 128) << 8 | lo;
+		}
+		return true;
+	}
 
 	/// <summary>Reads and decodes a frame.</summary>
 	/// <remarks>Returns the number of samples per channel.</remarks>
@@ -125,22 +133,15 @@ public abstract class QOADecoder
 			return -1;
 		int channels = GetChannels();
 		int slices = (samplesCount + 19) / 20;
-		if (ReadBits(16) != 8 + channels * (8 + slices * 8))
+		if (ReadBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
 		LMS[] lmses = new LMS[8];
 		for (int _i0 = 0; _i0 < 8; _i0++) {
 			lmses[_i0] = new LMS();
 		}
 		for (int c = 0; c < channels; c++) {
-			for (int i = 0; i < 4; i++) {
-				int h = ReadByte();
-				if (h < 0)
-					return -1;
-				int w = ReadByte();
-				if (w < 0)
-					return -1;
-				lmses[c].Init(i, h, w);
-			}
+			if (!ReadLMS(lmses[c].History) || !ReadLMS(lmses[c].Weights))
+				return -1;
 		}
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			for (int c = 0; c < channels; c++) {

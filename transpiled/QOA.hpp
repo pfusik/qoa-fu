@@ -13,12 +13,10 @@ class LMS
 public:
 	LMS() = default;
 public:
-	void init(int i, int h, int w);
-	int predict() const;
-	void update(int sample, int residual);
-private:
 	std::array<int, 4> history;
 	std::array<int, 4> weights;
+	int predict() const;
+	void update(int sample, int residual);
 };
 
 /**
@@ -96,4 +94,5 @@ private:
 	static constexpr int maxFrameSlices = 256;
 	int getMaxFrameBytes() const;
 	static int clamp(int value, int min, int max);
+	bool readLMS(int * result);
 };

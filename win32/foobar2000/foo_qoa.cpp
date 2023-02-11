@@ -154,4 +154,4 @@ static input_singletrack_factory_t<input_qoa> g_input_qoa_factory;
 
 DECLARE_FILE_TYPE("Quite OK Audio","*.QOA");
 
-DECLARE_COMPONENT_VERSION("Quite OK Audio (QOA) Decoder", "0.1.0", "(C) 2023 Piotr Fusik");
+DECLARE_COMPONENT_VERSION("Quite OK Audio (QOA) Decoder", "0.2.0", "(C) 2023 Piotr Fusik");

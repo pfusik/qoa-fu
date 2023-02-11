@@ -8,10 +8,6 @@ class _LMS:
 		self._history = array.array("i", [ 0 ]) * 4
 		self._weights = array.array("i", [ 0 ]) * 4
 
-	def _init(self, i, h, w):
-		self._history[i] = ((h ^ 128) - 128) << 8
-		self._weights[i] = ((w ^ 128) - 128) << 8
-
 	def _predict(self):
 		return (self._history[0] * self._weights[0] + self._history[1] * self._weights[1] + self._history[2] * self._weights[2] + self._history[3] * self._weights[3]) >> 13
 
@@ -82,11 +78,22 @@ class QOADecoder:
 	"""Maximum number of samples per frame."""
 
 	def _get_max_frame_bytes(self):
-		return 8 + self.get_channels() * 2056
+		return 8 + self.get_channels() * 2064
 
 	@staticmethod
 	def _clamp(value, min, max):
 		return min if value < min else max if value > max else value
+
+	def _read_l_m_s(self, result):
+		for i in range(4):
+			hi = self._read_byte()
+			if hi < 0:
+				return False
+			lo = self._read_byte()
+			if lo < 0:
+				return False
+			result[i] = ((hi ^ 128) - 128) << 8 | lo
+		return True
 
 	def read_frame(self, samples):
 		"""Reads and decodes a frame.
@@ -102,18 +109,12 @@ class QOADecoder:
 			return -1
 		channels = self.get_channels()
 		slices = int((samples_count + 19) / 20)
-		if self._read_bits(16) != 8 + channels * (8 + slices * 8):
+		if self._read_bits(16) != 8 + channels * (16 + slices * 8):
 			return -1
 		lmses = [ _LMS() for _ in range(8) ]
 		for c in range(channels):
-			for i in range(4):
-				h = self._read_byte()
-				if h < 0:
-					return -1
-				w = self._read_byte()
-				if w < 0:
-					return -1
-				lmses[c]._init(i, h, w)
+			if not self._read_l_m_s(lmses[c]._history) or not self._read_l_m_s(lmses[c]._weights):
+				return -1
 		for sample_index in range(0, samples_count, 20):
 			for c in range(channels):
 				scale_factor = self._read_bits(4)

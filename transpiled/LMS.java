@@ -5,14 +5,8 @@
  */
 class LMS
 {
-	private final int[] history = new int[4];
-	private final int[] weights = new int[4];
-
-	final void init(int i, int h, int w)
-	{
-		this.history[i] = ((h ^ 128) - 128) << 8;
-		this.weights[i] = ((w ^ 128) - 128) << 8;
-	}
+	final int[] history = new int[4];
+	final int[] weights = new int[4];
 
 	final int predict()
 	{

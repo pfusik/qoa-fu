@@ -4,15 +4,9 @@
 class LMS
 {
 
-	private var history = [Int](repeating: 0, count: 4)
+	fileprivate let history = ArrayRef<Int>(repeating: 0, count: 4)
 
-	private var weights = [Int](repeating: 0, count: 4)
-
-	fileprivate func init_(_ i : Int, _ h : Int, _ w : Int)
-	{
-		self.history[i] = (h ^ 128 - 128) << 8
-		self.weights[i] = (w ^ 128 - 128) << 8
-	}
+	fileprivate let weights = ArrayRef<Int>(repeating: 0, count: 4)
 
 	fileprivate func predict() -> Int
 	{
@@ -134,12 +128,28 @@ public class QOADecoder
 
 	private func getMaxFrameBytes() -> Int
 	{
-		return 8 + getChannels() * 2056
+		return 8 + getChannels() * 2064
 	}
 
 	private static func clamp(_ value : Int, _ min : Int, _ max : Int) -> Int
 	{
 		return value < min ? min : value > max ? max : value
+	}
+
+	private func readLMS(_ result : ArrayRef<Int>?) -> Bool
+	{
+		for i in 0..<4 {
+			let hi : Int = readByte()
+			if hi < 0 {
+				return false
+			}
+			let lo : Int = readByte()
+			if lo < 0 {
+				return false
+			}
+			result![i] = (hi ^ 128 - 128) << 8 | lo
+		}
+		return true
 	}
 
 	/// Reads and decodes a frame.
@@ -156,21 +166,13 @@ public class QOADecoder
 		}
 		let channels : Int = getChannels()
 		let slices : Int = (samplesCount + 19) / 20
-		if readBits(16) != 8 + channels * (8 + slices * 8) {
+		if readBits(16) != 8 + channels * (16 + slices * 8) {
 			return -1
 		}
 		let lmses = ArrayRef<LMS>(factory: LMS.init, count: 8)
 		for c in 0..<channels {
-			for i in 0..<4 {
-				let h : Int = readByte()
-				if h < 0 {
-					return -1
-				}
-				let w : Int = readByte()
-				if w < 0 {
-					return -1
-				}
-				lmses[c].init_(i, h, w)
+			if !readLMS(lmses[c].history) || !readLMS(lmses[c].weights) {
+				return -1
 			}
 		}
 		for sampleIndex in stride(from: 0, to: samplesCount, by: 20) {

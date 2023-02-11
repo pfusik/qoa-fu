@@ -105,12 +105,26 @@ public abstract class QOADecoder
 
 	private int getMaxFrameBytes()
 	{
-		return 8 + getChannels() * 2056;
+		return 8 + getChannels() * 2064;
 	}
 
 	private static int clamp(int value, int min, int max)
 	{
 		return value < min ? min : value > max ? max : value;
+	}
+
+	private boolean readLMS(int[] result)
+	{
+		for (int i = 0; i < 4; i++) {
+			int hi = readByte();
+			if (hi < 0)
+				return false;
+			int lo = readByte();
+			if (lo < 0)
+				return false;
+			result[i] = ((hi ^ 128) - 128) << 8 | lo;
+		}
+		return true;
 	}
 
 	/**
@@ -127,22 +141,15 @@ public abstract class QOADecoder
 			return -1;
 		int channels = getChannels();
 		int slices = (samplesCount + 19) / 20;
-		if (readBits(16) != 8 + channels * (8 + slices * 8))
+		if (readBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
 		final LMS[] lmses = new LMS[8];
 		for (int _i0 = 0; _i0 < 8; _i0++) {
 			lmses[_i0] = new LMS();
 		}
 		for (int c = 0; c < channels; c++) {
-			for (int i = 0; i < 4; i++) {
-				int h = readByte();
-				if (h < 0)
-					return -1;
-				int w = readByte();
-				if (w < 0)
-					return -1;
-				lmses[c].init(i, h, w);
-			}
+			if (!readLMS(lmses[c].history) || !readLMS(lmses[c].weights))
+				return -1;
 		}
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			for (int c = 0; c < channels; c++) {

@@ -5,31 +5,25 @@
  */
 class LMS
 {
-	#history = new Int32Array(4);
-	#weights = new Int32Array(4);
-
-	init(i, h, w)
-	{
-		this.#history[i] = ((h ^ 128) - 128) << 8;
-		this.#weights[i] = ((w ^ 128) - 128) << 8;
-	}
+	history = new Int32Array(4);
+	weights = new Int32Array(4);
 
 	predict()
 	{
-		return (this.#history[0] * this.#weights[0] + this.#history[1] * this.#weights[1] + this.#history[2] * this.#weights[2] + this.#history[3] * this.#weights[3]) >> 13;
+		return (this.history[0] * this.weights[0] + this.history[1] * this.weights[1] + this.history[2] * this.weights[2] + this.history[3] * this.weights[3]) >> 13;
 	}
 
 	update(sample, residual)
 	{
 		let delta = residual >> 4;
-		this.#weights[0] += this.#history[0] < 0 ? -delta : delta;
-		this.#weights[1] += this.#history[1] < 0 ? -delta : delta;
-		this.#weights[2] += this.#history[2] < 0 ? -delta : delta;
-		this.#weights[3] += this.#history[3] < 0 ? -delta : delta;
-		this.#history[0] = this.#history[1];
-		this.#history[1] = this.#history[2];
-		this.#history[2] = this.#history[3];
-		this.#history[3] = sample;
+		this.weights[0] += this.history[0] < 0 ? -delta : delta;
+		this.weights[1] += this.history[1] < 0 ? -delta : delta;
+		this.weights[2] += this.history[2] < 0 ? -delta : delta;
+		this.weights[3] += this.history[3] < 0 ? -delta : delta;
+		this.history[0] = this.history[1];
+		this.history[1] = this.history[2];
+		this.history[2] = this.history[3];
+		this.history[3] = sample;
 	}
 }
 
@@ -122,12 +116,26 @@ export class QOADecoder
 
 	#getMaxFrameBytes()
 	{
-		return 8 + this.getChannels() * 2056;
+		return 8 + this.getChannels() * 2064;
 	}
 
 	static #clamp(value, min, max)
 	{
 		return value < min ? min : value > max ? max : value;
+	}
+
+	#readLMS(result)
+	{
+		for (let i = 0; i < 4; i++) {
+			let hi = this.readByte();
+			if (hi < 0)
+				return false;
+			let lo = this.readByte();
+			if (lo < 0)
+				return false;
+			result[i] = ((hi ^ 128) - 128) << 8 | lo;
+		}
+		return true;
 	}
 
 	/**
@@ -144,22 +152,15 @@ export class QOADecoder
 			return -1;
 		let channels = this.getChannels();
 		let slices = (samplesCount + 19) / 20 | 0;
-		if (this.#readBits(16) != 8 + channels * (8 + slices * 8))
+		if (this.#readBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
 		const lmses = new Array(8);
 		for (let _i0 = 0; _i0 < 8; _i0++) {
 			lmses[_i0] = new LMS();
 		}
 		for (let c = 0; c < channels; c++) {
-			for (let i = 0; i < 4; i++) {
-				let h = this.readByte();
-				if (h < 0)
-					return -1;
-				let w = this.readByte();
-				if (w < 0)
-					return -1;
-				lmses[c].init(i, h, w);
-			}
+			if (!this.#readLMS(lmses[c].history) || !this.#readLMS(lmses[c].weights))
+				return -1;
 		}
 		for (let sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			for (let c = 0; c < channels; c++) {

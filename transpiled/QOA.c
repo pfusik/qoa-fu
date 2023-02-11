@@ -11,8 +11,6 @@ struct LMS {
 	int weights[4];
 };
 
-static void LMS_Init(LMS *self, int i, int h, int w);
-
 static int LMS_Predict(const LMS *self);
 
 static void LMS_Update(LMS *self, int sample, int residual);
@@ -40,11 +38,7 @@ static int QOADecoder_GetMaxFrameBytes(const QOADecoder *self);
 
 static int QOADecoder_Clamp(int value, int min, int max);
 
-static void LMS_Init(LMS *self, int i, int h, int w)
-{
-	self->history[i] = ((h ^ 128) - 128) << 8;
-	self->weights[i] = ((w ^ 128) - 128) << 8;
-}
+static bool QOADecoder_ReadLMS(QOADecoder *self, int *result);
 
 static int LMS_Predict(const LMS *self)
 {
@@ -129,12 +123,26 @@ int QOADecoder_GetSampleRate(const QOADecoder *self)
 
 static int QOADecoder_GetMaxFrameBytes(const QOADecoder *self)
 {
-	return 8 + QOADecoder_GetChannels(self) * 2056;
+	return 8 + QOADecoder_GetChannels(self) * 2064;
 }
 
 static int QOADecoder_Clamp(int value, int min, int max)
 {
 	return value < min ? min : value > max ? max : value;
+}
+
+static bool QOADecoder_ReadLMS(QOADecoder *self, int *result)
+{
+	for (int i = 0; i < 4; i++) {
+		int hi = self->vtbl->readByte(self);
+		if (hi < 0)
+			return false;
+		int lo = self->vtbl->readByte(self);
+		if (lo < 0)
+			return false;
+		result[i] = ((hi ^ 128) - 128) << 8 | lo;
+	}
+	return true;
 }
 
 int QOADecoder_ReadFrame(QOADecoder *self, int16_t *samples)
@@ -146,19 +154,12 @@ int QOADecoder_ReadFrame(QOADecoder *self, int16_t *samples)
 		return -1;
 	int channels = QOADecoder_GetChannels(self);
 	int slices = (samplesCount + 19) / 20;
-	if (QOADecoder_ReadBits(self, 16) != 8 + channels * (8 + slices * 8))
+	if (QOADecoder_ReadBits(self, 16) != 8 + channels * (16 + slices * 8))
 		return -1;
 	LMS lmses[8];
 	for (int c = 0; c < channels; c++) {
-		for (int i = 0; i < 4; i++) {
-			int h = self->vtbl->readByte(self);
-			if (h < 0)
-				return -1;
-			int w = self->vtbl->readByte(self);
-			if (w < 0)
-				return -1;
-			LMS_Init(&lmses[c], i, h, w);
-		}
+		if (!QOADecoder_ReadLMS(self, lmses[c].history) || !QOADecoder_ReadLMS(self, lmses[c].weights))
+			return -1;
 	}
 	for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 		for (int c = 0; c < channels; c++) {

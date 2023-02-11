@@ -5,14 +5,8 @@
  */
 class LMS
 {
-	private readonly history: Int32Array = new Int32Array(4);
-	private readonly weights: Int32Array = new Int32Array(4);
-
-	init(i: number, h: number, w: number): void
-	{
-		this.history[i] = ((h ^ 128) - 128) << 8;
-		this.weights[i] = ((w ^ 128) - 128) << 8;
-	}
+	readonly history: Int32Array = new Int32Array(4);
+	readonly weights: Int32Array = new Int32Array(4);
 
 	predict(): number
 	{
@@ -138,12 +132,26 @@ export abstract class QOADecoder
 
 	private getMaxFrameBytes(): number
 	{
-		return 8 + this.getChannels() * 2056;
+		return 8 + this.getChannels() * 2064;
 	}
 
 	private static clamp(value: number, min: number, max: number): number
 	{
 		return value < min ? min : value > max ? max : value;
+	}
+
+	private readLMS(result: Int32Array | null): boolean
+	{
+		for (let i: number = 0; i < 4; i++) {
+			let hi: number = this.readByte();
+			if (hi < 0)
+				return false;
+			let lo: number = this.readByte();
+			if (lo < 0)
+				return false;
+			result[i] = ((hi ^ 128) - 128) << 8 | lo;
+		}
+		return true;
 	}
 
 	/**
@@ -160,22 +168,15 @@ export abstract class QOADecoder
 			return -1;
 		let channels: number = this.getChannels();
 		let slices: number = (samplesCount + 19) / 20 | 0;
-		if (this.readBits(16) != 8 + channels * (8 + slices * 8))
+		if (this.readBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
 		const lmses: LMS[] = new Array(8);
 		for (let _i0 = 0; _i0 < 8; _i0++) {
 			lmses[_i0] = new LMS();
 		}
 		for (let c: number = 0; c < channels; c++) {
-			for (let i: number = 0; i < 4; i++) {
-				let h: number = this.readByte();
-				if (h < 0)
-					return -1;
-				let w: number = this.readByte();
-				if (w < 0)
-					return -1;
-				lmses[c].init(i, h, w);
-			}
+			if (!this.readLMS(lmses[c].history) || !this.readLMS(lmses[c].weights))
+				return -1;
 		}
 		for (let sampleIndex: number = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			for (let c: number = 0; c < channels; c++) {

@@ -25,14 +25,8 @@
 /// Least Mean Squares Filter.
 class LMS
 {
-	int[4] History;
-	int[4] Weights;
-
-	internal void Init!(int i, int h, int w)
-	{
-		History[i] = ((h ^ 0x80) - 0x80) << 8;
-		Weights[i] = ((w ^ 0x80) - 0x80) << 8;
-	}
+	internal int[4] History;
+	internal int[4] Weights;
 
 	internal int Predict() => (History[0] * Weights[0] + History[1] * Weights[1] + History[2] * Weights[2] + History[3] * Weights[3]) >> 13;
 
@@ -126,9 +120,23 @@ public abstract class QOADecoder
 	/// Maximum number of samples per frame.
 	public const int MaxFrameSamples = MaxFrameSlices * SliceSamples;
 
-	int GetMaxFrameBytes() => 8 + GetChannels() * (8 + MaxFrameSlices * 8);
+	int GetMaxFrameBytes() => 8 + GetChannels() * (16 + MaxFrameSlices * 8);
 
 	static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
+
+	bool ReadLMS!(int[]! result)
+	{
+		for (int i = 0; i < 4; i++) {
+			int hi = ReadByte();
+			if (hi < 0)
+				return false;
+			int lo = ReadByte();
+			if (lo < 0)
+				return false;
+			result[i] = (hi ^ 0x80) - 0x80 << 8 | lo;
+		}
+		return true;
+	}
 
 	/// Reads and decodes a frame.
 	/// Returns the number of samples per channel.
@@ -144,20 +152,13 @@ public abstract class QOADecoder
 			return -1;
 		int channels = GetChannels();
 		int slices = (samplesCount + (SliceSamples - 1)) / SliceSamples;
-		if (ReadBits(16) != 8 + channels * (8 + slices * 8))
+		if (ReadBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
 
 		LMS()[MaxChannels] lmses;
 		for (int c = 0; c < channels; c++) {
-			for (int i = 0; i < 4; i++) {
-				int h = ReadByte();
-				if (h < 0)
-					return -1;
-				int w = ReadByte();
-				if (w < 0)
-					return -1;
-				lmses[c].Init(i, h, w);
-			}
+			if (!ReadLMS(lmses[c].History) || !ReadLMS(lmses[c].Weights))
+				return -1;
 		}
 
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += SliceSamples) {

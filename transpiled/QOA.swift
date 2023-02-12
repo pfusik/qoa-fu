@@ -8,6 +8,12 @@ class LMS
 
 	fileprivate let weights = ArrayRef<Int>(repeating: 0, count: 4)
 
+	fileprivate func assign(_ source : LMS?)
+	{
+		self.history[0..<4] = source!.history[0..<4]
+		self.weights[0..<4] = source!.weights[0..<4]
+	}
+
 	fileprivate func predict() -> Int
 	{
 		return (self.history[0] * self.weights[0] + self.history[1] * self.weights[1] + self.history[2] * self.weights[2] + self.history[3] * self.weights[3]) >> 13
@@ -27,14 +33,192 @@ class LMS
 	}
 }
 
-/// Decoder of the "Quite OK Audio" format.
-public class QOADecoder
+/// Common part of the "Quite OK Audio" format encoder and decoder.
+public class QOABase
 {
-	/// Constructs the decoder.
-	/// The decoder can be used for several files, one after another.
-	public init()
+
+	public static func clamp(_ value : Int, _ min : Int, _ max : Int) -> Int
 	{
+		return value < min ? min : value > max ? max : value
 	}
+
+	public var frameHeader : Int = 0
+
+	/// Maximum number of channels supported by the format.
+	public static let maxChannels = 8
+
+	/// Returns the number of audio channels.
+	public func getChannels() -> Int
+	{
+		return self.frameHeader >> 24
+	}
+
+	/// Returns the sample rate in Hz.
+	public func getSampleRate() -> Int
+	{
+		return self.frameHeader & 16777215
+	}
+
+	public static let sliceSamples = 20
+
+	public static let maxFrameSlices = 256
+
+	/// Maximum number of samples per frame.
+	public static let maxFrameSamples = 5120
+
+	public func getFrameBytes(_ sampleCount : Int) -> Int
+	{
+		let slices : Int = (sampleCount + 19) / 20
+		return 8 + getChannels() * (16 + slices * 8)
+	}
+
+	public static let scaleFactors = [UInt16]([ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ])
+
+	public static func dequantize(_ quantized : Int, _ scaleFactor : Int) -> Int
+	{
+		var dequantized : Int
+		switch quantized >> 1 {
+		case 0:
+			dequantized = (scaleFactor * 3 + 2) >> 2
+			break
+		case 1:
+			dequantized = (scaleFactor * 5 + 1) >> 1
+			break
+		case 2:
+			dequantized = (scaleFactor * 9 + 1) >> 1
+			break
+		default:
+			dequantized = scaleFactor * 7
+			break
+		}
+		return quantized & 1 != 0 ? -dequantized : dequantized
+	}
+}
+
+/// Encoder of the "Quite OK Audio" format.
+public class QOAEncoder : QOABase
+{
+
+	/// Writes the 64-bit integer in big endian order.
+	/// Returns `true` on success.
+	/// - parameter l The integer to be written to the QOA stream.
+	open func writeLong(_ l : Int64) -> Bool
+	{
+		preconditionFailure("Abstract method called")
+	}
+
+	private let lMSes = ArrayRef<LMS>(factory: LMS.init, count: 8)
+
+	/// Writes the file header.
+	/// Returns `true` on success.
+	/// - parameter totalSamples File length in samples per channel.
+	/// - parameter channels Number of audio channels.
+	/// - parameter sampleRate Sample rate in Hz.
+	public func writeHeader(_ totalSamples : Int, _ channels : Int, _ sampleRate : Int) -> Bool
+	{
+		if totalSamples <= 0 || channels <= 0 || channels > 8 || sampleRate <= 0 || sampleRate >= 16777216 {
+			return false
+		}
+		self.frameHeader = channels << 24 | sampleRate
+		for c in 0..<channels {
+			self.lMSes[c].history.fill(0)
+			self.lMSes[c].weights[0] = 0
+			self.lMSes[c].weights[1] = 0
+			self.lMSes[c].weights[2] = -8192
+			self.lMSes[c].weights[3] = 16384
+		}
+		let magic : Int64 = 1903124838
+		return writeLong(magic << 32 | Int64(totalSamples))
+	}
+
+	private func writeLMS(_ a : ArrayRef<Int>?) -> Bool
+	{
+		let a0 : Int64 = Int64(a![0])
+		let a1 : Int64 = Int64(a![1])
+		let a2 : Int64 = Int64(a![2])
+		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | a![3] & 65535)
+	}
+
+	/// Encodes and writes a frame.
+	/// - parameter samples PCM samples: `samplesCount * channels` elements.
+	/// - parameter samplesCount Number of samples per channel.
+	public func writeFrame(_ samples : ArrayRef<Int16>?, _ samplesCount : Int) -> Bool
+	{
+		if samplesCount <= 0 || samplesCount > 5120 {
+			return false
+		}
+		let header : Int64 = Int64(self.frameHeader)
+		if !writeLong(header << 32 | samplesCount << 16 | Int64(getFrameBytes(samplesCount))) {
+			return false
+		}
+		let channels : Int = getChannels()
+		for c in 0..<channels {
+			if !writeLMS(self.lMSes[c].history) || !writeLMS(self.lMSes[c].weights) {
+				return false
+			}
+		}
+		var lms = LMS()
+		var bestLMS = LMS()
+		for sampleIndex in stride(from: 0, to: samplesCount, by: 20) {
+			var sliceSamples : Int = samplesCount - sampleIndex
+			if sliceSamples > 20 {
+				sliceSamples = 20
+			}
+			for c in 0..<channels {
+				var bestError : Int64 = 9223372036854775807
+				var bestSlice : Int64 = 0
+				for scaleFactor in 0..<16 {
+					lms.assign(self.lMSes[c])
+					let reciprocal : Int = QOAEncoder.writeFrameReciprocals[scaleFactor]
+					var slice : Int64 = Int64(scaleFactor)
+					var currentError : Int64 = 0
+					for s in 0..<sliceSamples {
+						let sample : Int = Int(samples![(sampleIndex + s) * channels + c])
+						let predicted : Int = lms.predict()
+						let residual : Int = sample - predicted
+						var scaled : Int = (residual * reciprocal + 32768) >> 16
+						if scaled != 0 {
+							scaled += scaled < 0 ? 1 : -1
+						}
+						if residual != 0 {
+							scaled += residual > 0 ? 1 : -1
+						}
+						let quantized : Int = Int(QOAEncoder.writeFrameQuantTab[8 + QOAEncoder.clamp(scaled, -8, 8)])
+						let dequantized : Int = QOAEncoder.dequantize(quantized, Int(QOAEncoder.scaleFactors[scaleFactor]))
+						let reconstructed : Int = QOAEncoder.clamp(predicted + dequantized, -32768, 32767)
+						let error : Int = sample - reconstructed
+						currentError += Int64(error * error)
+						if currentError >= bestError {
+							break
+						}
+						lms.update(reconstructed, dequantized)
+						slice = slice << 3 | Int64(quantized)
+					}
+					if currentError < bestError {
+						bestError = currentError
+						bestSlice = slice
+						bestLMS.assign(lms)
+					}
+				}
+				self.lMSes[c].assign(bestLMS)
+				bestSlice <<= Int64((20 - sliceSamples) * 3)
+				if !writeLong(bestSlice) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+
+	private static let writeFrameReciprocals = [Int]([ 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 ])
+
+	private static let writeFrameQuantTab = [UInt8]([ 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
+		6 ])
+}
+
+/// Decoder of the "Quite OK Audio" format.
+public class QOADecoder : QOABase
+{
 
 	/// Reads a byte from the stream.
 	/// Returns the unsigned byte value or -1 on EOF.
@@ -72,8 +256,6 @@ public class QOADecoder
 
 	private var totalSamples : Int = 0
 
-	private var expectedFrameHeader : Int = 0
-
 	private var positionSamples : Int = 0
 
 	/// Reads the file header.
@@ -89,8 +271,8 @@ public class QOADecoder
 		if self.totalSamples <= 0 {
 			return false
 		}
-		self.expectedFrameHeader = readBits(32)
-		if self.expectedFrameHeader <= 0 {
+		self.frameHeader = readBits(32)
+		if self.frameHeader <= 0 {
 			return false
 		}
 		self.positionSamples = 0
@@ -104,36 +286,9 @@ public class QOADecoder
 		return self.totalSamples
 	}
 
-	/// Maximum number of channels supported by the format.
-	public static let maxChannels = 8
-
-	/// Returns the number of audio channels.
-	public func getChannels() -> Int
-	{
-		return self.expectedFrameHeader >> 24
-	}
-
-	/// Returns the sample rate in Hz.
-	public func getSampleRate() -> Int
-	{
-		return self.expectedFrameHeader & 16777215
-	}
-
-	private static let sliceSamples = 20
-
-	private static let maxFrameSlices = 256
-
-	/// Maximum number of samples per frame.
-	public static let maxFrameSamples = 5120
-
 	private func getMaxFrameBytes() -> Int
 	{
 		return 8 + getChannels() * 2064
-	}
-
-	private static func clamp(_ value : Int, _ min : Int, _ max : Int) -> Int
-	{
-		return value < min ? min : value > max ? max : value
 	}
 
 	private func readLMS(_ result : ArrayRef<Int>?) -> Bool
@@ -157,7 +312,7 @@ public class QOADecoder
 	/// - parameter samples PCM samples.
 	public func readFrame(_ samples : ArrayRef<Int16>?) -> Int
 	{
-		if self.positionSamples > 0 && readBits(32) != self.expectedFrameHeader {
+		if self.positionSamples > 0 && readBits(32) != self.frameHeader {
 			return -1
 		}
 		let samplesCount : Int = readBits(16)
@@ -181,7 +336,7 @@ public class QOADecoder
 				if scaleFactor < 0 {
 					return -1
 				}
-				scaleFactor = Int(QOADecoder.readFrameScaleFactors[scaleFactor])
+				scaleFactor = Int(QOADecoder.scaleFactors[scaleFactor])
 				var sampleOffset : Int = sampleIndex * channels + c
 				for s in 0..<20 {
 					let quantized : Int = readBits(3)
@@ -191,24 +346,7 @@ public class QOADecoder
 					if sampleIndex + s >= samplesCount {
 						continue
 					}
-					var dequantized : Int
-					switch quantized >> 1 {
-					case 0:
-						dequantized = (scaleFactor * 3 + 2) >> 2
-						break
-					case 1:
-						dequantized = (scaleFactor * 5 + 1) >> 1
-						break
-					case 2:
-						dequantized = (scaleFactor * 9 + 1) >> 1
-						break
-					default:
-						dequantized = scaleFactor * 7
-						break
-					}
-					if quantized & 1 != 0 {
-						dequantized = -dequantized
-					}
+					let dequantized : Int = QOADecoder.dequantize(quantized, scaleFactor)
 					let reconstructed : Int = QOADecoder.clamp(lmses[c].predict() + dequantized, -32768, 32767)
 					lmses[c].update(reconstructed, dequantized)
 					samples![sampleOffset] = Int16(reconstructed)
@@ -235,8 +373,6 @@ public class QOADecoder
 	{
 		return self.positionSamples >= self.totalSamples
 	}
-
-	private static let readFrameScaleFactors = [UInt16]([ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ])
 }
 
 public class ArrayRef<T> : Sequence

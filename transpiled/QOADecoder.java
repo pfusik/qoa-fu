@@ -3,15 +3,8 @@
 /**
  * Decoder of the "Quite OK Audio" format.
  */
-public abstract class QOADecoder
+public abstract class QOADecoder extends QOABase
 {
-	/**
-	 * Constructs the decoder.
-	 * The decoder can be used for several files, one after another.
-	 */
-	public QOADecoder()
-	{
-	}
 
 	/**
 	 * Reads a byte from the stream.
@@ -42,7 +35,6 @@ public abstract class QOADecoder
 		return result;
 	}
 	private int totalSamples;
-	private int expectedFrameHeader;
 	private int positionSamples;
 
 	/**
@@ -57,8 +49,8 @@ public abstract class QOADecoder
 		this.totalSamples = readBits(32);
 		if (this.totalSamples <= 0)
 			return false;
-		this.expectedFrameHeader = readBits(32);
-		if (this.expectedFrameHeader <= 0)
+		this.frameHeader = readBits(32);
+		if (this.frameHeader <= 0)
 			return false;
 		this.positionSamples = 0;
 		int channels = getChannels();
@@ -73,44 +65,9 @@ public abstract class QOADecoder
 		return this.totalSamples;
 	}
 
-	/**
-	 * Maximum number of channels supported by the format.
-	 */
-	public static final int MAX_CHANNELS = 8;
-
-	/**
-	 * Returns the number of audio channels.
-	 */
-	public final int getChannels()
-	{
-		return this.expectedFrameHeader >> 24;
-	}
-
-	/**
-	 * Returns the sample rate in Hz.
-	 */
-	public final int getSampleRate()
-	{
-		return this.expectedFrameHeader & 16777215;
-	}
-
-	private static final int SLICE_SAMPLES = 20;
-
-	private static final int MAX_FRAME_SLICES = 256;
-
-	/**
-	 * Maximum number of samples per frame.
-	 */
-	public static final int MAX_FRAME_SAMPLES = 5120;
-
 	private int getMaxFrameBytes()
 	{
 		return 8 + getChannels() * 2064;
-	}
-
-	private static int clamp(int value, int min, int max)
-	{
-		return value < min ? min : value > max ? max : value;
 	}
 
 	private boolean readLMS(int[] result)
@@ -134,7 +91,7 @@ public abstract class QOADecoder
 	 */
 	public final int readFrame(short[] samples)
 	{
-		if (this.positionSamples > 0 && readBits(32) != this.expectedFrameHeader)
+		if (this.positionSamples > 0 && readBits(32) != this.frameHeader)
 			return -1;
 		int samplesCount = readBits(16);
 		if (samplesCount <= 0 || samplesCount > 5120 || samplesCount > this.totalSamples - this.positionSamples)
@@ -156,7 +113,7 @@ public abstract class QOADecoder
 				int scaleFactor = readBits(4);
 				if (scaleFactor < 0)
 					return -1;
-				scaleFactor = READ_FRAME_SCALE_FACTORS[scaleFactor];
+				scaleFactor = SCALE_FACTORS[scaleFactor];
 				int sampleOffset = sampleIndex * channels + c;
 				for (int s = 0; s < 20; s++) {
 					int quantized = readBits(3);
@@ -164,23 +121,7 @@ public abstract class QOADecoder
 						return -1;
 					if (sampleIndex + s >= samplesCount)
 						continue;
-					int dequantized;
-					switch (quantized >> 1) {
-					case 0:
-						dequantized = (scaleFactor * 3 + 2) >> 2;
-						break;
-					case 1:
-						dequantized = (scaleFactor * 5 + 1) >> 1;
-						break;
-					case 2:
-						dequantized = (scaleFactor * 9 + 1) >> 1;
-						break;
-					default:
-						dequantized = scaleFactor * 7;
-						break;
-					}
-					if ((quantized & 1) != 0)
-						dequantized = -dequantized;
+					int dequantized = dequantize(quantized, scaleFactor);
 					int reconstructed = clamp(lmses[c].predict() + dequantized, -32768, 32767);
 					lmses[c].update(reconstructed, dequantized);
 					samples[sampleOffset] = (short) reconstructed;
@@ -211,6 +152,4 @@ public abstract class QOADecoder
 	{
 		return this.positionSamples >= this.totalSamples;
 	}
-
-	private static final short[] READ_FRAME_SCALE_FACTORS = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
 }

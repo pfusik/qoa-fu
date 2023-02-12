@@ -1,4 +1,4 @@
-﻿This project implements decoding
+﻿This project implements encoding and decoding
 of the ["Quite OK Audio" (QOA)](https://github.com/phoboslab/qoa) format
 in the [Ć programming language](https://github.com/pfusik/cito).
 Ć can be automatically translated to pure C, C++, C#, Java, JavaScript,

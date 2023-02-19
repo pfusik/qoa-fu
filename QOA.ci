@@ -192,7 +192,7 @@ public abstract class QOAEncoder : QOABase
 						int quantized = quantTab[8 + Clamp(scaled, -8, 8)];
 						int dequantized = Dequantize(quantized, ScaleFactors[scaleFactor]);
 						int reconstructed = Clamp(predicted + dequantized, short.MinValue, short.MaxValue);
-						int error = sample - reconstructed;
+						long error = sample - reconstructed;
 						currentError += error * error;
 						if (currentError >= bestError)
 							break;

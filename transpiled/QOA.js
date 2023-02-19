@@ -192,7 +192,7 @@ export class QOAEncoder extends QOABase
 						let quantized = QOAEncoder.WRITE_FRAME_QUANT_TAB[8 + QOAEncoder.clamp(scaled, -8, 8)];
 						let dequantized = QOAEncoder.dequantize(quantized, QOAEncoder.SCALE_FACTORS[scaleFactor]);
 						let reconstructed = QOAEncoder.clamp(predicted + dequantized, -32768, 32767);
-						let error = sample - reconstructed;
+						let error = BigInt(sample - reconstructed);
 						currentError += error * error;
 						if (currentError >= bestError)
 							break;

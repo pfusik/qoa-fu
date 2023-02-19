@@ -95,7 +95,7 @@ public abstract class QOAEncoder extends QOABase
 						int quantized = WRITE_FRAME_QUANT_TAB[8 + clamp(scaled, -8, 8)];
 						int dequantized = dequantize(quantized, SCALE_FACTORS[scaleFactor]);
 						int reconstructed = clamp(predicted + dequantized, -32768, 32767);
-						int error = sample - reconstructed;
+						long error = sample - reconstructed;
 						currentError += error * error;
 						if (currentError >= bestError)
 							break;

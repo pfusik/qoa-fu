@@ -198,7 +198,7 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 					int quantized = QUANT_TAB[8 + QOABase_Clamp(scaled, -8, 8)];
 					int dequantized = QOABase_Dequantize(quantized, QOABase_SCALE_FACTORS[scaleFactor]);
 					int reconstructed = QOABase_Clamp(predicted + dequantized, -32768, 32767);
-					int error = sample - reconstructed;
+					int64_t error = sample - reconstructed;
 					currentError += error * error;
 					if (currentError >= bestError)
 						break;

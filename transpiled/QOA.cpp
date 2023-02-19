@@ -132,7 +132,7 @@ bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
 					int quantized = quantTab[8 + clamp(scaled, -8, 8)];
 					int dequantized = dequantize(quantized, scaleFactors[scaleFactor]);
 					int reconstructed = clamp(predicted + dequantized, -32768, 32767);
-					int error = sample - reconstructed;
+					int64_t error = sample - reconstructed;
 					currentError += error * error;
 					if (currentError >= bestError)
 						break;

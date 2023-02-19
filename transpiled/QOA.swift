@@ -186,8 +186,8 @@ public class QOAEncoder : QOABase
 						let quantized : Int = Int(QOAEncoder.writeFrameQuantTab[8 + QOAEncoder.clamp(scaled, -8, 8)])
 						let dequantized : Int = QOAEncoder.dequantize(quantized, Int(QOAEncoder.scaleFactors[scaleFactor]))
 						let reconstructed : Int = QOAEncoder.clamp(predicted + dequantized, -32768, 32767)
-						let error : Int = sample - reconstructed
-						currentError += Int64(error * error)
+						let error : Int64 = Int64(sample - reconstructed)
+						currentError += error * error
 						if currentError >= bestError {
 							break
 						}

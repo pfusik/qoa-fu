@@ -8,10 +8,10 @@ class LMS
 
 	fileprivate let weights = ArrayRef<Int>(repeating: 0, count: 4)
 
-	fileprivate func assign(_ source : LMS?)
+	fileprivate func assign(_ source : LMS)
 	{
-		self.history[0..<4] = source!.history[0..<4]
-		self.weights[0..<4] = source!.weights[0..<4]
+		self.history[0..<4] = source.history[0..<4]
+		self.weights[0..<4] = source.weights[0..<4]
 	}
 
 	fileprivate func predict() -> Int
@@ -131,18 +131,18 @@ public class QOAEncoder : QOABase
 		return writeLong(magic << 32 | Int64(totalSamples))
 	}
 
-	private func writeLMS(_ a : ArrayRef<Int>?) -> Bool
+	private func writeLMS(_ a : ArrayRef<Int>) -> Bool
 	{
-		let a0 : Int64 = Int64(a![0])
-		let a1 : Int64 = Int64(a![1])
-		let a2 : Int64 = Int64(a![2])
-		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | a![3] & 65535)
+		let a0 : Int64 = Int64(a[0])
+		let a1 : Int64 = Int64(a[1])
+		let a2 : Int64 = Int64(a[2])
+		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | a[3] & 65535)
 	}
 
 	/// Encodes and writes a frame.
 	/// - parameter samples PCM samples: `samplesCount * channels` elements.
 	/// - parameter samplesCount Number of samples per channel.
-	public func writeFrame(_ samples : ArrayRef<Int16>?, _ samplesCount : Int) -> Bool
+	public func writeFrame(_ samples : ArrayRef<Int16>, _ samplesCount : Int) -> Bool
 	{
 		if samplesCount <= 0 || samplesCount > 5120 {
 			return false
@@ -173,7 +173,7 @@ public class QOAEncoder : QOABase
 					var slice : Int64 = Int64(scaleFactor)
 					var currentError : Int64 = 0
 					for s in 0..<sliceSamples {
-						let sample : Int = Int(samples![(sampleIndex + s) * channels + c])
+						let sample : Int = Int(samples[(sampleIndex + s) * channels + c])
 						let predicted : Int = lms.predict()
 						let residual : Int = sample - predicted
 						var scaled : Int = (residual * reciprocal + 32768) >> 16
@@ -291,7 +291,7 @@ public class QOADecoder : QOABase
 		return 8 + getChannels() * 2064
 	}
 
-	private func readLMS(_ result : ArrayRef<Int>?) -> Bool
+	private func readLMS(_ result : ArrayRef<Int>) -> Bool
 	{
 		for i in 0..<4 {
 			let hi : Int = readByte()
@@ -302,7 +302,7 @@ public class QOADecoder : QOABase
 			if lo < 0 {
 				return false
 			}
-			result![i] = (hi ^ 128 - 128) << 8 | lo
+			result[i] = (hi ^ 128 - 128) << 8 | lo
 		}
 		return true
 	}
@@ -310,7 +310,7 @@ public class QOADecoder : QOABase
 	/// Reads and decodes a frame.
 	/// Returns the number of samples per channel.
 	/// - parameter samples PCM samples.
-	public func readFrame(_ samples : ArrayRef<Int16>?) -> Int
+	public func readFrame(_ samples : ArrayRef<Int16>) -> Int
 	{
 		if self.positionSamples > 0 && readBits(32) != self.frameHeader {
 			return -1
@@ -349,7 +349,7 @@ public class QOADecoder : QOABase
 					let dequantized : Int = QOADecoder.dequantize(quantized, scaleFactor)
 					let reconstructed : Int = QOADecoder.clamp(lmses[c].predict() + dequantized, -32768, 32767)
 					lmses[c].update(reconstructed, dequantized)
-					samples![sampleOffset] = Int16(reconstructed)
+					samples[sampleOffset] = Int16(reconstructed)
 					sampleOffset += channels
 				}
 			}

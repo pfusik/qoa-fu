@@ -8,7 +8,7 @@ class LMS
 	readonly history: Int32Array = new Int32Array(4);
 	readonly weights: Int32Array = new Int32Array(4);
 
-	assign(source: LMS | null): void
+	assign(source: LMS): void
 	{
 		this.history.set(source.history);
 		this.weights.set(source.weights);
@@ -148,7 +148,7 @@ export abstract class QOAEncoder extends QOABase
 		return this.writeLong(magic << 32n | BigInt(totalSamples));
 	}
 
-	private writeLMS(a: Readonly<Int32Array> | null): boolean
+	private writeLMS(a: Readonly<Int32Array>): boolean
 	{
 		let a0: bigint = BigInt(a[0]);
 		let a1: bigint = BigInt(a[1]);
@@ -161,7 +161,7 @@ export abstract class QOAEncoder extends QOABase
 	 * @param samples PCM samples: <code>samplesCount * channels</code> elements.
 	 * @param samplesCount Number of samples per channel.
 	 */
-	public writeFrame(samples: Readonly<Int16Array> | null, samplesCount: number): boolean
+	public writeFrame(samples: Readonly<Int16Array>, samplesCount: number): boolean
 	{
 		if (samplesCount <= 0 || samplesCount > 5120)
 			return false;
@@ -297,7 +297,7 @@ export abstract class QOADecoder extends QOABase
 		return 8 + this.getChannels() * 2064;
 	}
 
-	private readLMS(result: Int32Array | null): boolean
+	private readLMS(result: Int32Array): boolean
 	{
 		for (let i: number = 0; i < 4; i++) {
 			let hi: number = this.readByte();
@@ -316,7 +316,7 @@ export abstract class QOADecoder extends QOABase
 	 * Returns the number of samples per channel.
 	 * @param samples PCM samples.
 	 */
-	public readFrame(samples: Int16Array | null): number
+	public readFrame(samples: Int16Array): number
 	{
 		if (this.positionSamples > 0 && this.readBits(32) != this.frameHeader)
 			return -1;

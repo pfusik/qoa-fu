@@ -136,7 +136,7 @@ public class QOAEncoder : QOABase
 		let a0 : Int64 = Int64(a[0])
 		let a1 : Int64 = Int64(a[1])
 		let a2 : Int64 = Int64(a[2])
-		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | a[3] & 65535)
+		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | Int64(a[3] & 65535))
 	}
 
 	/// Encodes and writes a frame.
@@ -148,7 +148,7 @@ public class QOAEncoder : QOABase
 			return false
 		}
 		let header : Int64 = Int64(self.frameHeader)
-		if !writeLong(header << 32 | samplesCount << 16 | Int64(getFrameBytes(samplesCount))) {
+		if !writeLong(header << 32 | Int64(samplesCount << 16) | Int64(getFrameBytes(samplesCount))) {
 			return false
 		}
 		let channels : Int = getChannels()

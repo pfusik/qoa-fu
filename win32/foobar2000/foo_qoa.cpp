@@ -27,7 +27,7 @@
 
 class FooQOADecoder : public QOADecoder
 {
-	service_ptr_t<file> m_file;
+	file::ptr m_file;
 	abort_callback *p_abort = nullptr;
 
 protected:
@@ -47,7 +47,7 @@ protected:
 
 public:
 
-	service_ptr_t<file> &get_file()
+	file::ptr &get_file()
 	{
 		return m_file;
 	}
@@ -87,7 +87,7 @@ public:
 		return "QOA";
 	}
 
-	void open(service_ptr_t<file> p_filehint, const char *p_path, t_input_open_reason p_reason, abort_callback &p_abort)
+	void open(file::ptr p_filehint, const char *p_path, t_input_open_reason p_reason, abort_callback &p_abort)
 	{
 		if (p_filehint.is_empty())
 			filesystem::g_open(p_filehint, p_path, filesystem::open_mode_read, p_abort);
@@ -152,6 +152,6 @@ public:
 
 static input_singletrack_factory_t<input_qoa> g_input_qoa_factory;
 
-DECLARE_FILE_TYPE("Quite OK Audio","*.QOA");
+DECLARE_FILE_TYPE("Quite OK Audio", "*.QOA");
 
 DECLARE_COMPONENT_VERSION("Quite OK Audio (QOA) Decoder", "0.2.0", "(C) 2023 Piotr Fusik");

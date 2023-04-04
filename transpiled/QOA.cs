@@ -61,7 +61,7 @@ public abstract class QOABase
 		return 8 + GetChannels() * (16 + slices * 8);
 	}
 
-	protected static readonly ushort[] ScaleFactors = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
+	protected static readonly short[] ScaleFactors = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
 
 	protected static int Dequantize(int quantized, int scaleFactor)
 	{

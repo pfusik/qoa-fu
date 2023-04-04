@@ -28,6 +28,7 @@ public:
 class QOABase
 {
 public:
+	virtual ~QOABase() = default;
 	/**
 	 * Maximum number of channels supported by the format.
 	 */
@@ -51,7 +52,7 @@ protected:
 	static constexpr int sliceSamples = 20;
 	static constexpr int maxFrameSlices = 256;
 	int getFrameBytes(int sampleCount) const;
-	static constexpr std::array<uint16_t, 16> scaleFactors = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
+	static constexpr std::array<int16_t, 16> scaleFactors = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
 	static int dequantize(int quantized, int scaleFactor);
 };
 

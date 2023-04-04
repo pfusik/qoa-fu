@@ -72,7 +72,7 @@ public class QOABase
 		return 8 + getChannels() * (16 + slices * 8)
 	}
 
-	public static let scaleFactors = [UInt16]([ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ])
+	public static let scaleFactors = [Int16]([ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ])
 
 	public static func dequantize(_ quantized : Int, _ scaleFactor : Int) -> Int
 	{

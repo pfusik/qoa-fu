@@ -28,7 +28,7 @@ struct QOABase {
 static int QOABase_Clamp(int value, int min, int max);
 
 static int QOABase_GetFrameBytes(const QOABase *self, int sampleCount);
-static const uint16_t QOABase_SCALE_FACTORS[16] = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
+static const int16_t QOABase_SCALE_FACTORS[16] = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
 
 static int QOABase_Dequantize(int quantized, int scaleFactor);
 

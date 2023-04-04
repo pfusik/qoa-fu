@@ -81,7 +81,7 @@ export abstract class QOABase
 		return 8 + this.getChannels() * (16 + slices * 8);
 	}
 
-	protected static readonly SCALE_FACTORS: Readonly<Uint16Array> = new Uint16Array([ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ]);
+	protected static readonly SCALE_FACTORS: Readonly<Int16Array> = new Int16Array([ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ]);
 
 	protected static dequantize(quantized: number, scaleFactor: number): number
 	{

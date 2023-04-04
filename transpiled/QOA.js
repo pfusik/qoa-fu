@@ -81,7 +81,7 @@ export class QOABase
 		return 8 + this.getChannels() * (16 + slices * 8);
 	}
 
-	static SCALE_FACTORS = new Uint16Array([ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ]);
+	static SCALE_FACTORS = new Int16Array([ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ]);
 
 	static dequantize(quantized, scaleFactor)
 	{

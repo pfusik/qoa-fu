@@ -55,7 +55,7 @@ class QOABase:
 		slices = int((sample_count + 19) / 20)
 		return 8 + self.get_channels() * (16 + slices * 8)
 
-	_SCALE_FACTORS = array.array("H", [ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ])
+	_SCALE_FACTORS = array.array("h", [ 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 ])
 
 	@staticmethod
 	def _dequantize(quantized, scale_factor):

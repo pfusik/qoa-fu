@@ -70,7 +70,7 @@ public:
 		return false;
 	}
 
-	static bool g_is_our_path(const char * p_path, const char * p_extension)
+	static bool g_is_our_path(const char *p_path, const char *p_extension)
 	{
 		return stricmp_utf8(p_extension, "qoa") == 0;
 	}
@@ -100,7 +100,7 @@ public:
 	void get_info(file_info &p_info, abort_callback &p_abort) const
 	{
 		int sampleRate = qoa.getSampleRate();
-		p_info.set_length((double) qoa.getTotalSamples() / sampleRate);
+		p_info.set_length(static_cast<double>(qoa.getTotalSamples()) / sampleRate);
 		p_info.info_set_int("channels", qoa.getChannels());
 		p_info.info_set_int("samplerate", sampleRate);
 		p_info.info_set_bitrate((sampleRate * qoa.getChannels() * 32 + 5000) / 10000); // 3.2 bits per sample
@@ -154,4 +154,4 @@ static input_singletrack_factory_t<input_qoa> g_input_qoa_factory;
 
 DECLARE_FILE_TYPE("Quite OK Audio", "*.QOA");
 
-DECLARE_COMPONENT_VERSION("Quite OK Audio (QOA) Decoder", "0.2.0", "(C) 2023 Piotr Fusik");
+DECLARE_COMPONENT_VERSION("Quite OK Audio (QOA) Decoder", "0.3.0", "(C) 2023 Piotr Fusik");

@@ -1,4 +1,4 @@
-VERSION = 0.2.0
+VERSION = 0.3.0
 FOOBAR2000_SDK_DIR = ../../../foobar2000_SDK
 
 foo_qoa-$(VERSION).fb2k-component: foo_qoa.dll x64/foo_qoa.dll

@@ -1,4 +1,4 @@
-// Generated automatically with "cito". Do not edit.
+// Generated automatically with "fut". Do not edit.
 
 /**
  * Common part of the "Quite OK Audio" format encoder and decoder.

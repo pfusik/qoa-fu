@@ -1,4 +1,4 @@
-// Generated automatically with "cito". Do not edit.
+// Generated automatically with "fut". Do not edit.
 
 /// Least Mean Squares Filter.
 class LMS
@@ -157,8 +157,8 @@ public class QOAEncoder : QOABase
 				return false
 			}
 		}
-		var lms = LMS()
-		var bestLMS = LMS()
+		let lms = LMS()
+		let bestLMS = LMS()
 		for sampleIndex in stride(from: 0, to: samplesCount, by: 20) {
 			var sliceSamples : Int = samplesCount - sampleIndex
 			if sliceSamples > 20 {

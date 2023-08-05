@@ -1,4 +1,4 @@
-// Generated automatically with "cito". Do not edit.
+// Generated automatically with "fut". Do not edit.
 #include <stdlib.h>
 #include <string.h>
 #include "QOA.h"

@@ -1,4 +1,4 @@
-// Generated automatically with "cito". Do not edit.
+// Generated automatically with "fut". Do not edit.
 
 /**
  * Least Mean Squares Filter.
@@ -177,7 +177,7 @@ export class QOAEncoder extends QOABase
 				let bestSlice = 0n;
 				for (let scaleFactor = 0; scaleFactor < 16; scaleFactor++) {
 					lms.assign(this.#lMSes[c]);
-					let reciprocal = QOAEncoder.WRITE_FRAME_RECIPROCALS[scaleFactor];
+					let reciprocal = QOAEncoder.#WRITE_FRAME_RECIPROCALS[scaleFactor];
 					let slice = BigInt(scaleFactor);
 					let currentError = 0n;
 					for (let s = 0; s < sliceSamples; s++) {
@@ -189,7 +189,7 @@ export class QOAEncoder extends QOABase
 							scaled += scaled < 0 ? 1 : -1;
 						if (residual != 0)
 							scaled += residual > 0 ? 1 : -1;
-						let quantized = QOAEncoder.WRITE_FRAME_QUANT_TAB[8 + QOAEncoder.clamp(scaled, -8, 8)];
+						let quantized = QOAEncoder.#WRITE_FRAME_QUANT_TAB[8 + QOAEncoder.clamp(scaled, -8, 8)];
 						let dequantized = QOAEncoder.dequantize(quantized, QOAEncoder.SCALE_FACTORS[scaleFactor]);
 						let reconstructed = QOAEncoder.clamp(predicted + dequantized, -32768, 32767);
 						let error = BigInt(sample - reconstructed);
@@ -214,9 +214,9 @@ export class QOAEncoder extends QOABase
 		return true;
 	}
 
-	static WRITE_FRAME_RECIPROCALS = new Int32Array([ 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 ]);
+	static #WRITE_FRAME_RECIPROCALS = new Int32Array([ 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 ]);
 
-	static WRITE_FRAME_QUANT_TAB = new Uint8Array([ 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
+	static #WRITE_FRAME_QUANT_TAB = new Uint8Array([ 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
 		6 ]);
 }
 

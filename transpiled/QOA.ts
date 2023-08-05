@@ -1,4 +1,4 @@
-// Generated automatically with "cito". Do not edit.
+// Generated automatically with "fut". Do not edit.
 
 /**
  * Least Mean Squares Filter.
@@ -113,7 +113,7 @@ export abstract class QOAEncoder extends QOABase
 	{
 		super();
 		for (let _i0 = 0; _i0 < 8; _i0++) {
-			this.lMSes[_i0] = new LMS();
+			this.#lMSes[_i0] = new LMS();
 		}
 	}
 
@@ -123,7 +123,7 @@ export abstract class QOAEncoder extends QOABase
 	 * @param l The integer to be written to the QOA stream.
 	 */
 	protected abstract writeLong(l: bigint): boolean;
-	private readonly lMSes: LMS[] = new Array(8);
+	readonly #lMSes: LMS[] = new Array(8);
 
 	/**
 	 * Writes the file header.
@@ -138,17 +138,17 @@ export abstract class QOAEncoder extends QOABase
 			return false;
 		this.frameHeader = channels << 24 | sampleRate;
 		for (let c: number = 0; c < channels; c++) {
-			this.lMSes[c].history.fill(0);
-			this.lMSes[c].weights[0] = 0;
-			this.lMSes[c].weights[1] = 0;
-			this.lMSes[c].weights[2] = -8192;
-			this.lMSes[c].weights[3] = 16384;
+			this.#lMSes[c].history.fill(0);
+			this.#lMSes[c].weights[0] = 0;
+			this.#lMSes[c].weights[1] = 0;
+			this.#lMSes[c].weights[2] = -8192;
+			this.#lMSes[c].weights[3] = 16384;
 		}
 		let magic: bigint = 1903124838n;
 		return this.writeLong(magic << 32n | BigInt(totalSamples));
 	}
 
-	private writeLMS(a: Readonly<Int32Array>): boolean
+	#writeLMS(a: Readonly<Int32Array>): boolean
 	{
 		let a0: bigint = BigInt(a[0]);
 		let a1: bigint = BigInt(a[1]);
@@ -170,7 +170,7 @@ export abstract class QOAEncoder extends QOABase
 			return false;
 		let channels: number = this.getChannels();
 		for (let c: number = 0; c < channels; c++) {
-			if (!this.writeLMS(this.lMSes[c].history) || !this.writeLMS(this.lMSes[c].weights))
+			if (!this.#writeLMS(this.#lMSes[c].history) || !this.#writeLMS(this.#lMSes[c].weights))
 				return false;
 		}
 		const lms: LMS = new LMS();
@@ -183,8 +183,8 @@ export abstract class QOAEncoder extends QOABase
 				let bestError: bigint = 9223372036854775807n;
 				let bestSlice: bigint = 0n;
 				for (let scaleFactor: number = 0; scaleFactor < 16; scaleFactor++) {
-					lms.assign(this.lMSes[c]);
-					let reciprocal: number = QOAEncoder.WRITE_FRAME_RECIPROCALS[scaleFactor];
+					lms.assign(this.#lMSes[c]);
+					let reciprocal: number = QOAEncoder.#WRITE_FRAME_RECIPROCALS[scaleFactor];
 					let slice: bigint = BigInt(scaleFactor);
 					let currentError: bigint = 0n;
 					for (let s: number = 0; s < sliceSamples; s++) {
@@ -196,7 +196,7 @@ export abstract class QOAEncoder extends QOABase
 							scaled += scaled < 0 ? 1 : -1;
 						if (residual != 0)
 							scaled += residual > 0 ? 1 : -1;
-						let quantized: number = QOAEncoder.WRITE_FRAME_QUANT_TAB[8 + QOAEncoder.clamp(scaled, -8, 8)];
+						let quantized: number = QOAEncoder.#WRITE_FRAME_QUANT_TAB[8 + QOAEncoder.clamp(scaled, -8, 8)];
 						let dequantized: number = QOAEncoder.dequantize(quantized, QOAEncoder.SCALE_FACTORS[scaleFactor]);
 						let reconstructed: number = QOAEncoder.clamp(predicted + dequantized, -32768, 32767);
 						let error: bigint = BigInt(sample - reconstructed);
@@ -212,7 +212,7 @@ export abstract class QOAEncoder extends QOABase
 						bestLMS.assign(lms);
 					}
 				}
-				this.lMSes[c].assign(bestLMS);
+				this.#lMSes[c].assign(bestLMS);
 				bestSlice <<= (20 - sliceSamples) * 3;
 				if (!this.writeLong(bestSlice))
 					return false;
@@ -221,9 +221,9 @@ export abstract class QOAEncoder extends QOABase
 		return true;
 	}
 
-	private static readonly WRITE_FRAME_RECIPROCALS: Readonly<Int32Array> = new Int32Array([ 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 ]);
+	static readonly #WRITE_FRAME_RECIPROCALS: Readonly<Int32Array> = new Int32Array([ 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 ]);
 
-	private static readonly WRITE_FRAME_QUANT_TAB: Readonly<Uint8Array> = new Uint8Array([ 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
+	static readonly #WRITE_FRAME_QUANT_TAB: Readonly<Uint8Array> = new Uint8Array([ 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
 		6 ]);
 }
 
@@ -244,25 +244,25 @@ export abstract class QOADecoder extends QOABase
 	 * @param position File offset in bytes.
 	 */
 	protected abstract seekToByte(position: number): void;
-	private buffer: number;
-	private bufferBits: number;
+	#buffer: number;
+	#bufferBits: number;
 
-	private readBits(bits: number): number
+	#readBits(bits: number): number
 	{
-		while (this.bufferBits < bits) {
+		while (this.#bufferBits < bits) {
 			let b: number = this.readByte();
 			if (b < 0)
 				return -1;
-			this.buffer = this.buffer << 8 | b;
-			this.bufferBits += 8;
+			this.#buffer = this.#buffer << 8 | b;
+			this.#bufferBits += 8;
 		}
-		this.bufferBits -= bits;
-		let result: number = this.buffer >> this.bufferBits;
-		this.buffer &= (1 << this.bufferBits) - 1;
+		this.#bufferBits -= bits;
+		let result: number = this.#buffer >> this.#bufferBits;
+		this.#buffer &= (1 << this.#bufferBits) - 1;
 		return result;
 	}
-	private totalSamples: number;
-	private positionSamples: number;
+	#totalSamples: number;
+	#positionSamples: number;
 
 	/**
 	 * Reads the file header.
@@ -272,14 +272,14 @@ export abstract class QOADecoder extends QOABase
 	{
 		if (this.readByte() != 113 || this.readByte() != 111 || this.readByte() != 97 || this.readByte() != 102)
 			return false;
-		this.bufferBits = this.buffer = 0;
-		this.totalSamples = this.readBits(32);
-		if (this.totalSamples <= 0)
+		this.#bufferBits = this.#buffer = 0;
+		this.#totalSamples = this.#readBits(32);
+		if (this.#totalSamples <= 0)
 			return false;
-		this.frameHeader = this.readBits(32);
+		this.frameHeader = this.#readBits(32);
 		if (this.frameHeader <= 0)
 			return false;
-		this.positionSamples = 0;
+		this.#positionSamples = 0;
 		let channels: number = this.getChannels();
 		return channels > 0 && channels <= 8 && this.getSampleRate() > 0;
 	}
@@ -289,15 +289,15 @@ export abstract class QOADecoder extends QOABase
 	 */
 	public getTotalSamples(): number
 	{
-		return this.totalSamples;
+		return this.#totalSamples;
 	}
 
-	private getMaxFrameBytes(): number
+	#getMaxFrameBytes(): number
 	{
 		return 8 + this.getChannels() * 2064;
 	}
 
-	private readLMS(result: Int32Array): boolean
+	#readLMS(result: Int32Array): boolean
 	{
 		for (let i: number = 0; i < 4; i++) {
 			let hi: number = this.readByte();
@@ -318,32 +318,32 @@ export abstract class QOADecoder extends QOABase
 	 */
 	public readFrame(samples: Int16Array): number
 	{
-		if (this.positionSamples > 0 && this.readBits(32) != this.frameHeader)
+		if (this.#positionSamples > 0 && this.#readBits(32) != this.frameHeader)
 			return -1;
-		let samplesCount: number = this.readBits(16);
-		if (samplesCount <= 0 || samplesCount > 5120 || samplesCount > this.totalSamples - this.positionSamples)
+		let samplesCount: number = this.#readBits(16);
+		if (samplesCount <= 0 || samplesCount > 5120 || samplesCount > this.#totalSamples - this.#positionSamples)
 			return -1;
 		let channels: number = this.getChannels();
 		let slices: number = (samplesCount + 19) / 20 | 0;
-		if (this.readBits(16) != 8 + channels * (16 + slices * 8))
+		if (this.#readBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
 		const lmses: LMS[] = new Array(8);
 		for (let _i0 = 0; _i0 < 8; _i0++) {
 			lmses[_i0] = new LMS();
 		}
 		for (let c: number = 0; c < channels; c++) {
-			if (!this.readLMS(lmses[c].history) || !this.readLMS(lmses[c].weights))
+			if (!this.#readLMS(lmses[c].history) || !this.#readLMS(lmses[c].weights))
 				return -1;
 		}
 		for (let sampleIndex: number = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			for (let c: number = 0; c < channels; c++) {
-				let scaleFactor: number = this.readBits(4);
+				let scaleFactor: number = this.#readBits(4);
 				if (scaleFactor < 0)
 					return -1;
 				scaleFactor = QOADecoder.SCALE_FACTORS[scaleFactor];
 				let sampleOffset: number = sampleIndex * channels + c;
 				for (let s: number = 0; s < 20; s++) {
-					let quantized: number = this.readBits(3);
+					let quantized: number = this.#readBits(3);
 					if (quantized < 0)
 						return -1;
 					if (sampleIndex + s >= samplesCount)
@@ -356,7 +356,7 @@ export abstract class QOADecoder extends QOABase
 				}
 			}
 		}
-		this.positionSamples += samplesCount;
+		this.#positionSamples += samplesCount;
 		return samplesCount;
 	}
 
@@ -368,8 +368,8 @@ export abstract class QOADecoder extends QOABase
 	public seekToSample(position: number): void
 	{
 		let frame: number = position / 5120 | 0;
-		this.seekToByte(frame == 0 ? 12 : 8 + frame * this.getMaxFrameBytes());
-		this.positionSamples = frame * 5120;
+		this.seekToByte(frame == 0 ? 12 : 8 + frame * this.#getMaxFrameBytes());
+		this.#positionSamples = frame * 5120;
 	}
 
 	/**
@@ -377,6 +377,6 @@ export abstract class QOADecoder extends QOABase
 	 */
 	public isEnd(): boolean
 	{
-		return this.positionSamples >= this.totalSamples;
+		return this.#positionSamples >= this.#totalSamples;
 	}
 }

@@ -2,7 +2,7 @@ CFLAGS = -O2 -Wall
 ifeq ($(OS),Windows_NT)
 EXEEXT = .exe
 endif
-TRANSPILED = $(addprefix transpiled/QOA., c cpp cs js py swift ts) transpiled/QOADecoder.java
+TRANSPILED = $(addprefix transpiled/QOA., c cpp cs d js py swift ts) transpiled/QOADecoder.java
 TEST_DIRS = ../test/bandcamp ../test/oculus_audio_pack ../test/sqam
 
 all: wav2qoa$(EXEEXT) $(TRANSPILED)

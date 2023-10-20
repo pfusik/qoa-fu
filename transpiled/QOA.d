@@ -15,10 +15,7 @@ class LMS
 		source.weights[0 .. $][0 .. 4].copy(this.weights[0 .. $]);
 	}
 
-	int predict()
-	{
-		return (this.history[0] * this.weights[0] + this.history[1] * this.weights[1] + this.history[2] * this.weights[2] + this.history[3] * this.weights[3]) >> 13;
-	}
+	int predict() => (this.history[0] * this.weights[0] + this.history[1] * this.weights[1] + this.history[2] * this.weights[2] + this.history[3] * this.weights[3]) >> 13;
 
 	void update(int sample, int residual)
 	{
@@ -38,26 +35,17 @@ class LMS
 class QOABase
 {
 
-	protected static int clamp(int value, int min, int max)
-	{
-		return value < min ? min : value > max ? max : value;
-	}
+	protected static int clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
 
 	protected int frameHeader;
 	/// Maximum number of channels supported by the format.
 	static immutable int maxChannels = 8;
 
 	/// Returns the number of audio channels.
-	int getChannels()
-	{
-		return this.frameHeader >> 24;
-	}
+	int getChannels() => this.frameHeader >> 24;
 
 	/// Returns the sample rate in Hz.
-	int getSampleRate()
-	{
-		return this.frameHeader & 16777215;
-	}
+	int getSampleRate() => this.frameHeader & 16777215;
 	static immutable int sliceSamples = 20;
 	static immutable int maxFrameSlices = 256;
 	/// Maximum number of samples per frame.
@@ -262,15 +250,9 @@ class QOADecoder : QOABase
 	}
 
 	/// Returns the file length in samples per channel.
-	int getTotalSamples()
-	{
-		return this.totalSamples;
-	}
+	int getTotalSamples() => this.totalSamples;
 
-	private int getMaxFrameBytes()
-	{
-		return 8 + getChannels() * 2064;
-	}
+	private int getMaxFrameBytes() => 8 + getChannels() * 2064;
 
 	private bool readLMS(int[] result)
 	{
@@ -346,8 +328,5 @@ class QOADecoder : QOABase
 	}
 
 	/// Returns `true` if all frames have been read.
-	bool isEnd()
-	{
-		return this.positionSamples >= this.totalSamples;
-	}
+	bool isEnd() => this.positionSamples >= this.totalSamples;
 }

@@ -11,8 +11,8 @@ class LMS
 
 	void assign(LMS source)
 	{
-		source.history[0 .. $][0 .. 4].copy(this.history[0 .. $]);
-		source.weights[0 .. $][0 .. 4].copy(this.weights[0 .. $]);
+		source.history[0 .. 4].copy(this.history[]);
+		source.weights[0 .. 4].copy(this.weights[]);
 	}
 
 	int predict() => (this.history[0] * this.weights[0] + this.history[1] * this.weights[1] + this.history[2] * this.weights[2] + this.history[3] * this.weights[3]) >> 13;

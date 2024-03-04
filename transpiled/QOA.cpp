@@ -105,6 +105,7 @@ bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
 	}
 	LMS lms;
 	LMS bestLMS;
+	std::array<uint8_t, 8> lastScaleFactors {};
 	for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 		int sliceSamples = samplesCount - sampleIndex;
 		if (sliceSamples > 20)
@@ -112,7 +113,8 @@ bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
 		for (int c = 0; c < channels; c++) {
 			int64_t bestError = 9223372036854775807;
 			int64_t bestSlice = 0;
-			for (int scaleFactor = 0; scaleFactor < 16; scaleFactor++) {
+			for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
+				int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
 				lms.assign(&this->lMSes[c]);
 				static constexpr std::array<int, 16> reciprocals = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
 				int reciprocal = reciprocals[scaleFactor];
@@ -147,6 +149,7 @@ bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
 			}
 			this->lMSes[c].assign(&bestLMS);
 			bestSlice <<= (20 - sliceSamples) * 3;
+			lastScaleFactors[c] = static_cast<uint8_t>(bestSlice >> 60);
 			if (!writeLong(bestSlice))
 				return false;
 		}

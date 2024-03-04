@@ -1,6 +1,6 @@
 // QOA.fu - encoder and decoder of the "Quite OK Audio" format
 //
-// Copyright (C) 2023 Piotr Fusik
+// Copyright (C) 2023-2024 Piotr Fusik
 //
 // MIT License:
 //
@@ -166,6 +166,7 @@ public abstract class QOAEncoder : QOABase
 
 		LMS() lms;
 		LMS() bestLMS;
+		0 .. 15 [MaxChannels] lastScaleFactors = 0;
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += SliceSamples) {
 			int sliceSamples = samplesCount - sampleIndex;
 			if (sliceSamples > SliceSamples)
@@ -173,7 +174,8 @@ public abstract class QOAEncoder : QOABase
 			for (int c = 0; c < channels; c++) {
 				long bestError = long.MaxValue;
 				long bestSlice = 0;
-				for (int scaleFactor = 0; scaleFactor < 16; scaleFactor++) {
+				for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
+					int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 0xf;
 					lms.Assign(LMSes[c]);
 					const 32 .. 65536 [16] reciprocals = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
 					int reciprocal = reciprocals[scaleFactor];
@@ -207,6 +209,7 @@ public abstract class QOAEncoder : QOABase
 				}
 				LMSes[c].Assign(bestLMS);
 				bestSlice <<= (SliceSamples - sliceSamples) * 3;
+				lastScaleFactors[c] = bestSlice >> (SliceSamples * 3);
 				if (!WriteLong(bestSlice))
 					return false;
 			}

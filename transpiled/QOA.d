@@ -145,6 +145,7 @@ class QOAEncoder : QOABase
 		}
 		LMS lms = new LMS;
 		LMS bestLMS = new LMS;
+		ubyte[8] lastScaleFactors;
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			int sliceSamples = samplesCount - sampleIndex;
 			if (sliceSamples > 20)
@@ -152,7 +153,8 @@ class QOAEncoder : QOABase
 			for (int c = 0; c < channels; c++) {
 				long bestError = 9223372036854775807;
 				long bestSlice = 0;
-				for (int scaleFactor = 0; scaleFactor < 16; scaleFactor++) {
+				for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
+					int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
 					lms.assign(this.lMSes[c]);
 					static immutable int[16] reciprocals = [ 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 ];
 					int reciprocal = reciprocals[scaleFactor];
@@ -187,6 +189,7 @@ class QOAEncoder : QOABase
 				}
 				this.lMSes[c].assign(bestLMS);
 				bestSlice <<= (20 - sliceSamples) * 3;
+				lastScaleFactors[c] = cast(ubyte)(bestSlice >> 60);
 				if (!writeLong(bestSlice))
 					return false;
 			}

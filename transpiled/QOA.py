@@ -134,6 +134,7 @@ class QOAEncoder(QOABase):
 				return False
 		lms: _LMS = _LMS()
 		best_l_m_s: _LMS = _LMS()
+		last_scale_factors: bytearray = bytearray(8)
 		for sample_index in range(0, samples_count, 20):
 			slice_samples: int = samples_count - sample_index
 			if slice_samples > 20:
@@ -141,7 +142,8 @@ class QOAEncoder(QOABase):
 			for c in range(channels):
 				best_error: int = 9223372036854775807
 				best_slice: int = 0
-				for scale_factor in range(16):
+				for scale_factor_delta in range(16):
+					scale_factor: int = (last_scale_factors[c] + scale_factor_delta) & 15
 					lms._assign(self._l_m_ses[c])
 					reciprocal: int = QOAEncoder._WRITE_FRAME_RECIPROCALS[scale_factor]
 					slice: int = scale_factor
@@ -170,6 +172,7 @@ class QOAEncoder(QOABase):
 						best_l_m_s._assign(lms)
 				self._l_m_ses[c]._assign(best_l_m_s)
 				best_slice <<= (20 - slice_samples) * 3
+				last_scale_factors[c] = best_slice >> 60
 				if not self._write_long(best_slice):
 					return False
 		return True

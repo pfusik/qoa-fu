@@ -168,6 +168,7 @@ export class QOAEncoder extends QOABase
 		}
 		const lms = new LMS();
 		const bestLMS = new LMS();
+		const lastScaleFactors = new Uint8Array(8);
 		for (let sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 			let sliceSamples = samplesCount - sampleIndex;
 			if (sliceSamples > 20)
@@ -175,7 +176,8 @@ export class QOAEncoder extends QOABase
 			for (let c = 0; c < channels; c++) {
 				let bestError = 9223372036854775807n;
 				let bestSlice = 0n;
-				for (let scaleFactor = 0; scaleFactor < 16; scaleFactor++) {
+				for (let scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
+					let scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
 					lms.assign(this.#lMSes[c]);
 					let reciprocal = QOAEncoder.#WRITE_FRAME_RECIPROCALS[scaleFactor];
 					let slice = BigInt(scaleFactor);
@@ -207,6 +209,7 @@ export class QOAEncoder extends QOABase
 				}
 				this.#lMSes[c].assign(bestLMS);
 				bestSlice <<= (20 - sliceSamples) * 3;
+				lastScaleFactors[c] = Number(bestSlice >> 60n);
 				if (!this.writeLong(bestSlice))
 					return false;
 			}

@@ -171,6 +171,7 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 	}
 	LMS lms;
 	LMS bestLMS;
+	uint8_t lastScaleFactors[8] = { 0 };
 	for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
 		int sliceSamples = samplesCount - sampleIndex;
 		if (sliceSamples > 20)
@@ -178,7 +179,8 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 		for (int c = 0; c < channels; c++) {
 			int64_t bestError = 9223372036854775807;
 			int64_t bestSlice = 0;
-			for (int scaleFactor = 0; scaleFactor < 16; scaleFactor++) {
+			for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
+				int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
 				LMS_Assign(&lms, &self->lMSes[c]);
 				static const int RECIPROCALS[16] = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
 				int reciprocal = RECIPROCALS[scaleFactor];
@@ -213,6 +215,7 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 			}
 			LMS_Assign(&self->lMSes[c], &bestLMS);
 			bestSlice <<= (20 - sliceSamples) * 3;
+			lastScaleFactors[c] = (uint8_t) (bestSlice >> 60);
 			if (!self->vtbl->writeLong(self, bestSlice))
 				return false;
 		}

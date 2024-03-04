@@ -159,6 +159,7 @@ public class QOAEncoder : QOABase
 		}
 		let lms = LMS()
 		let bestLMS = LMS()
+		var lastScaleFactors = [UInt8](repeating: 0, count: 8)
 		for sampleIndex in stride(from: 0, to: samplesCount, by: 20) {
 			var sliceSamples : Int = samplesCount - sampleIndex
 			if sliceSamples > 20 {
@@ -167,7 +168,8 @@ public class QOAEncoder : QOABase
 			for c in 0..<channels {
 				var bestError : Int64 = 9223372036854775807
 				var bestSlice : Int64 = 0
-				for scaleFactor in 0..<16 {
+				for scaleFactorDelta in 0..<16 {
+					let scaleFactor : Int = (Int(lastScaleFactors[c]) + scaleFactorDelta) & 15
 					lms.assign(self.lMSes[c])
 					let reciprocal : Int = QOAEncoder.writeFrameReciprocals[scaleFactor]
 					var slice : Int64 = Int64(scaleFactor)
@@ -202,6 +204,7 @@ public class QOAEncoder : QOABase
 				}
 				self.lMSes[c].assign(bestLMS)
 				bestSlice <<= Int64((20 - sliceSamples) * 3)
+				lastScaleFactors[c] = UInt8(bestSlice >> 60)
 				if !writeLong(bestSlice) {
 					return false
 				}

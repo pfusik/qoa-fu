@@ -166,14 +166,14 @@ public class QOAEncoder : QOABase
 				sliceSamples = 20
 			}
 			for c in 0..<channels {
-				var bestError : Int64 = 9223372036854775807
+				var bestRank : Int64 = 9223372036854775807
 				var bestSlice : Int64 = 0
 				for scaleFactorDelta in 0..<16 {
 					let scaleFactor : Int = (Int(lastScaleFactors[c]) + scaleFactorDelta) & 15
 					lms.assign(self.lMSes[c])
 					let reciprocal : Int = QOAEncoder.writeFrameReciprocals[scaleFactor]
 					var slice : Int64 = Int64(scaleFactor)
-					var currentError : Int64 = 0
+					var currentRank : Int64 = 0
 					for s in 0..<sliceSamples {
 						let sample : Int = Int(samples[(sampleIndex + s) * channels + c])
 						let predicted : Int = lms.predict()
@@ -189,15 +189,19 @@ public class QOAEncoder : QOABase
 						let dequantized : Int = QOAEncoder.dequantize(quantized, Int(QOAEncoder.scaleFactors[scaleFactor]))
 						let reconstructed : Int = QOAEncoder.clamp(predicted + dequantized, -32768, 32767)
 						let error : Int64 = Int64(sample - reconstructed)
-						currentError += error * error
-						if currentError >= bestError {
+						currentRank += error * error
+						let weightsPenalty : Int = (lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18 - 2303
+						if weightsPenalty > 0 {
+							currentRank += Int64(weightsPenalty)
+						}
+						if currentRank >= bestRank {
 							break
 						}
 						lms.update(reconstructed, dequantized)
 						slice = slice << 3 | Int64(quantized)
 					}
-					if currentError < bestError {
-						bestError = currentError
+					if currentRank < bestRank {
+						bestRank = currentRank
 						bestSlice = slice
 						bestLMS.assign(lms)
 					}

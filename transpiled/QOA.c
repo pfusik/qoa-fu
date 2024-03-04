@@ -177,7 +177,7 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 		if (sliceSamples > 20)
 			sliceSamples = 20;
 		for (int c = 0; c < channels; c++) {
-			int64_t bestError = 9223372036854775807;
+			int64_t bestRank = 9223372036854775807;
 			int64_t bestSlice = 0;
 			for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
 				int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
@@ -185,7 +185,7 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 				static const int RECIPROCALS[16] = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
 				int reciprocal = RECIPROCALS[scaleFactor];
 				int64_t slice = scaleFactor;
-				int64_t currentError = 0;
+				int64_t currentRank = 0;
 				for (int s = 0; s < sliceSamples; s++) {
 					int sample = samples[(sampleIndex + s) * channels + c];
 					int predicted = LMS_Predict(&lms);
@@ -201,14 +201,17 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 					int dequantized = QOABase_Dequantize(quantized, QOABase_SCALE_FACTORS[scaleFactor]);
 					int reconstructed = QOABase_Clamp(predicted + dequantized, -32768, 32767);
 					int64_t error = sample - reconstructed;
-					currentError += error * error;
-					if (currentError >= bestError)
+					currentRank += error * error;
+					int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
+					if (weightsPenalty > 0)
+						currentRank += weightsPenalty;
+					if (currentRank >= bestRank)
 						break;
 					LMS_Update(&lms, reconstructed, dequantized);
 					slice = slice << 3 | quantized;
 				}
-				if (currentError < bestError) {
-					bestError = currentError;
+				if (currentRank < bestRank) {
+					bestRank = currentRank;
 					bestSlice = slice;
 					LMS_Assign(&bestLMS, &lms);
 				}

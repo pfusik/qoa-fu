@@ -140,14 +140,14 @@ class QOAEncoder(QOABase):
 			if slice_samples > 20:
 				slice_samples = 20
 			for c in range(channels):
-				best_error: int = 9223372036854775807
+				best_rank: int = 9223372036854775807
 				best_slice: int = 0
 				for scale_factor_delta in range(16):
 					scale_factor: int = (last_scale_factors[c] + scale_factor_delta) & 15
 					lms._assign(self._l_m_ses[c])
 					reciprocal: int = QOAEncoder._WRITE_FRAME_RECIPROCALS[scale_factor]
 					slice: int = scale_factor
-					current_error: int = 0
+					current_rank: int = 0
 					for s in range(slice_samples):
 						sample: int = samples[(sample_index + s) * channels + c]
 						predicted: int = lms._predict()
@@ -161,13 +161,16 @@ class QOAEncoder(QOABase):
 						dequantized: int = QOAEncoder._dequantize(quantized, QOAEncoder._SCALE_FACTORS[scale_factor])
 						reconstructed: int = QOAEncoder._clamp(predicted + dequantized, -32768, 32767)
 						error: int = sample - reconstructed
-						current_error += error * error
-						if current_error >= best_error:
+						current_rank += error * error
+						weights_penalty: int = ((lms._weights[0] * lms._weights[0] + lms._weights[1] * lms._weights[1] + lms._weights[2] * lms._weights[2] + lms._weights[3] * lms._weights[3]) >> 18) - 2303
+						if weights_penalty > 0:
+							current_rank += weights_penalty
+						if current_rank >= best_rank:
 							break
 						lms._update(reconstructed, dequantized)
 						slice = slice << 3 | quantized
-					if current_error < best_error:
-						best_error = current_error
+					if current_rank < best_rank:
+						best_rank = current_rank
 						best_slice = slice
 						best_l_m_s._assign(lms)
 				self._l_m_ses[c]._assign(best_l_m_s)

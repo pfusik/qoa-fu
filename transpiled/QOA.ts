@@ -181,14 +181,14 @@ export abstract class QOAEncoder extends QOABase
 			if (sliceSamples > 20)
 				sliceSamples = 20;
 			for (let c: number = 0; c < channels; c++) {
-				let bestError: bigint = 9223372036854775807n;
+				let bestRank: bigint = 9223372036854775807n;
 				let bestSlice: bigint = 0n;
 				for (let scaleFactorDelta: number = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
 					let scaleFactor: number = (lastScaleFactors[c] + scaleFactorDelta) & 15;
 					lms.assign(this.#lMSes[c]);
 					let reciprocal: number = QOAEncoder.#WRITE_FRAME_RECIPROCALS[scaleFactor];
 					let slice: bigint = BigInt(scaleFactor);
-					let currentError: bigint = 0n;
+					let currentRank: bigint = 0n;
 					for (let s: number = 0; s < sliceSamples; s++) {
 						let sample: number = samples[(sampleIndex + s) * channels + c];
 						let predicted: number = lms.predict();
@@ -202,14 +202,17 @@ export abstract class QOAEncoder extends QOABase
 						let dequantized: number = QOAEncoder.dequantize(quantized, QOAEncoder.SCALE_FACTORS[scaleFactor]);
 						let reconstructed: number = QOAEncoder.clamp(predicted + dequantized, -32768, 32767);
 						let error: bigint = BigInt(sample - reconstructed);
-						currentError += error * error;
-						if (currentError >= bestError)
+						currentRank += error * error;
+						let weightsPenalty: number = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
+						if (weightsPenalty > 0)
+							currentRank += weightsPenalty;
+						if (currentRank >= bestRank)
 							break;
 						lms.update(reconstructed, dequantized);
 						slice = slice << 3n | BigInt(quantized);
 					}
-					if (currentError < bestError) {
-						bestError = currentError;
+					if (currentRank < bestRank) {
+						bestRank = currentRank;
 						bestSlice = slice;
 						bestLMS.assign(lms);
 					}

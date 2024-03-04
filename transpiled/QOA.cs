@@ -153,14 +153,14 @@ public abstract class QOAEncoder : QOABase
 			if (sliceSamples > 20)
 				sliceSamples = 20;
 			for (int c = 0; c < channels; c++) {
-				long bestError = 9223372036854775807;
+				long bestRank = 9223372036854775807;
 				long bestSlice = 0;
 				for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
 					int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
 					lms.Assign(this.LMSes[c]);
 					int reciprocal = WriteFramereciprocals[scaleFactor];
 					long slice = scaleFactor;
-					long currentError = 0;
+					long currentRank = 0;
 					for (int s = 0; s < sliceSamples; s++) {
 						int sample = samples[(sampleIndex + s) * channels + c];
 						int predicted = lms.Predict();
@@ -174,14 +174,17 @@ public abstract class QOAEncoder : QOABase
 						int dequantized = Dequantize(quantized, ScaleFactors[scaleFactor]);
 						int reconstructed = Clamp(predicted + dequantized, -32768, 32767);
 						long error = sample - reconstructed;
-						currentError += error * error;
-						if (currentError >= bestError)
+						currentRank += error * error;
+						int weightsPenalty = ((lms.Weights[0] * lms.Weights[0] + lms.Weights[1] * lms.Weights[1] + lms.Weights[2] * lms.Weights[2] + lms.Weights[3] * lms.Weights[3]) >> 18) - 2303;
+						if (weightsPenalty > 0)
+							currentRank += weightsPenalty;
+						if (currentRank >= bestRank)
 							break;
 						lms.Update(reconstructed, dequantized);
 						slice = slice << 3 | quantized;
 					}
-					if (currentError < bestError) {
-						bestError = currentError;
+					if (currentRank < bestRank) {
+						bestRank = currentRank;
 						bestSlice = slice;
 						bestLMS.Assign(lms);
 					}

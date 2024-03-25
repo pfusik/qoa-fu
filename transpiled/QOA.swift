@@ -101,7 +101,7 @@ public class QOAEncoder : QOABase
 
 	/// Writes the 64-bit integer in big endian order.
 	/// Returns `true` on success.
-	/// - parameter l The integer to be written to the QOA stream.
+	/// - Parameter l: The integer to be written to the QOA stream.
 	open func writeLong(_ l : Int64) -> Bool
 	{
 		preconditionFailure("Abstract method called")
@@ -111,9 +111,9 @@ public class QOAEncoder : QOABase
 
 	/// Writes the file header.
 	/// Returns `true` on success.
-	/// - parameter totalSamples File length in samples per channel.
-	/// - parameter channels Number of audio channels.
-	/// - parameter sampleRate Sample rate in Hz.
+	/// - Parameter totalSamples: File length in samples per channel.
+	/// - Parameter channels: Number of audio channels.
+	/// - Parameter sampleRate: Sample rate in Hz.
 	public func writeHeader(_ totalSamples : Int, _ channels : Int, _ sampleRate : Int) -> Bool
 	{
 		if totalSamples <= 0 || channels <= 0 || channels > 8 || sampleRate <= 0 || sampleRate >= 16777216 {
@@ -140,8 +140,8 @@ public class QOAEncoder : QOABase
 	}
 
 	/// Encodes and writes a frame.
-	/// - parameter samples PCM samples: `samplesCount * channels` elements.
-	/// - parameter samplesCount Number of samples per channel.
+	/// - Parameter samples: PCM samples: `samplesCount * channels` elements.
+	/// - Parameter samplesCount: Number of samples per channel.
 	public func writeFrame(_ samples : ArrayRef<Int16>, _ samplesCount : Int) -> Bool
 	{
 		if samplesCount <= 0 || samplesCount > 5120 {
@@ -235,7 +235,7 @@ public class QOADecoder : QOABase
 	}
 
 	/// Seeks the stream to the given position.
-	/// - parameter position File offset in bytes.
+	/// - Parameter position: File offset in bytes.
 	open func seekToByte(_ position : Int)
 	{
 		preconditionFailure("Abstract method called")
@@ -316,7 +316,7 @@ public class QOADecoder : QOABase
 
 	/// Reads and decodes a frame.
 	/// Returns the number of samples per channel.
-	/// - parameter samples PCM samples.
+	/// - Parameter samples: PCM samples.
 	public func readFrame(_ samples : ArrayRef<Int16>) -> Int
 	{
 		if self.positionSamples > 0 && readBits(32) != self.frameHeader {
@@ -367,7 +367,7 @@ public class QOADecoder : QOABase
 
 	/// Seeks to the given time offset.
 	/// Requires the input stream to be seekable with `SeekToByte`.
-	/// - parameter position Position from the beginning of the file.
+	/// - Parameter position: Position from the beginning of the file.
 	public func seekToSample(_ position : Int)
 	{
 		let frame : Int = position / 5120

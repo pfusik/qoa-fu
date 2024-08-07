@@ -5,11 +5,6 @@
  */
 public abstract class QOABase
 {
-
-	protected static int clamp(int value, int min, int max)
-	{
-		return value < min ? min : value > max ? max : value;
-	}
 	protected int frameHeader;
 
 	/**

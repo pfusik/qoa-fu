@@ -35,8 +35,6 @@ class LMS
 public abstract class QOABase
 {
 
-	protected static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
-
 	protected int FrameHeader;
 
 	/// <summary>Maximum number of channels supported by the format.</summary>
@@ -149,16 +147,14 @@ public abstract class QOAEncoder : QOABase
 		LMS bestLMS = new LMS();
 		byte[] lastScaleFactors = new byte[8];
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
-			int sliceSamples = samplesCount - sampleIndex;
-			if (sliceSamples > 20)
-				sliceSamples = 20;
+			int sliceSamples = Math.Min(samplesCount - sampleIndex, 20);
 			for (int c = 0; c < channels; c++) {
 				long bestRank = 9223372036854775807;
 				long bestSlice = 0;
 				for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
 					int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
 					lms.Assign(this.LMSes[c]);
-					int reciprocal = WriteFramereciprocals[scaleFactor];
+					int reciprocal = WriteFrame_reciprocals[scaleFactor];
 					long slice = scaleFactor;
 					long currentRank = 0;
 					for (int s = 0; s < sliceSamples; s++) {
@@ -170,9 +166,9 @@ public abstract class QOAEncoder : QOABase
 							scaled += scaled < 0 ? 1 : -1;
 						if (residual != 0)
 							scaled += residual > 0 ? 1 : -1;
-						int quantized = WriteFramequantTab[8 + Clamp(scaled, -8, 8)];
+						int quantized = WriteFrame_quantTab[8 + Math.Clamp(scaled, -8, 8)];
 						int dequantized = Dequantize(quantized, ScaleFactors[scaleFactor]);
-						int reconstructed = Clamp(predicted + dequantized, -32768, 32767);
+						int reconstructed = Math.Clamp(predicted + dequantized, -32768, 32767);
 						long error = sample - reconstructed;
 						currentRank += error * error;
 						int weightsPenalty = ((lms.Weights[0] * lms.Weights[0] + lms.Weights[1] * lms.Weights[1] + lms.Weights[2] * lms.Weights[2] + lms.Weights[3] * lms.Weights[3]) >> 18) - 2303;
@@ -199,9 +195,9 @@ public abstract class QOAEncoder : QOABase
 		return true;
 	}
 
-	static readonly int[] WriteFramereciprocals = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
+	static readonly int[] WriteFrame_reciprocals = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
 
-	static readonly byte[] WriteFramequantTab = { 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
+	static readonly byte[] WriteFrame_quantTab = { 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
 		6 };
 }
 
@@ -313,7 +309,7 @@ public abstract class QOADecoder : QOABase
 					if (sampleIndex + s >= samplesCount)
 						continue;
 					int dequantized = Dequantize(quantized, scaleFactor);
-					int reconstructed = Clamp(lmses[c].Predict() + dequantized, -32768, 32767);
+					int reconstructed = Math.Clamp(lmses[c].Predict() + dequantized, -32768, 32767);
 					lmses[c].Update(reconstructed, dequantized);
 					samples[sampleOffset] = (short) reconstructed;
 					sampleOffset += channels;

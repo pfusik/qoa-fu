@@ -73,9 +73,7 @@ public abstract class QOAEncoder extends QOABase
 		final LMS bestLMS = new LMS();
 		final byte[] lastScaleFactors = new byte[8];
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
-			int sliceSamples = samplesCount - sampleIndex;
-			if (sliceSamples > 20)
-				sliceSamples = 20;
+			int sliceSamples = Math.min(samplesCount - sampleIndex, 20);
 			for (int c = 0; c < channels; c++) {
 				long bestRank = 9223372036854775807L;
 				long bestSlice = 0;
@@ -94,9 +92,9 @@ public abstract class QOAEncoder extends QOABase
 							scaled += scaled < 0 ? 1 : -1;
 						if (residual != 0)
 							scaled += residual > 0 ? 1 : -1;
-						int quantized = WRITE_FRAME_QUANT_TAB[8 + clamp(scaled, -8, 8)];
+						int quantized = WRITE_FRAME_QUANT_TAB[8 + Math.min(Math.max(scaled, -8), 8)];
 						int dequantized = dequantize(quantized, SCALE_FACTORS[scaleFactor]);
-						int reconstructed = clamp(predicted + dequantized, -32768, 32767);
+						int reconstructed = Math.min(Math.max(predicted + dequantized, -32768), 32767);
 						long error = sample - reconstructed;
 						currentRank += error * error;
 						int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;

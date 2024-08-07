@@ -31,10 +31,6 @@ class _LMS:
 
 class QOABase(abc.ABC):
 	"""Common part of the "Quite OK Audio" format encoder and decoder."""
-
-	@staticmethod
-	def _clamp(value: int, min: int, max: int) -> int:
-		return min if value < min else max if value > max else value
 	_frame_header: int
 
 	MAX_CHANNELS = 8
@@ -136,9 +132,7 @@ class QOAEncoder(QOABase):
 		best_l_m_s: _LMS = _LMS()
 		last_scale_factors: bytearray = bytearray(8)
 		for sample_index in range(0, samples_count, 20):
-			slice_samples: int = samples_count - sample_index
-			if slice_samples > 20:
-				slice_samples = 20
+			slice_samples: int = min(samples_count - sample_index, 20)
 			for c in range(channels):
 				best_rank: int = 9223372036854775807
 				best_slice: int = 0
@@ -157,9 +151,9 @@ class QOAEncoder(QOABase):
 							scaled += 1 if scaled < 0 else -1
 						if residual != 0:
 							scaled += 1 if residual > 0 else -1
-						quantized: int = QOAEncoder._WRITE_FRAME_QUANT_TAB[8 + QOAEncoder._clamp(scaled, -8, 8)]
+						quantized: int = QOAEncoder._WRITE_FRAME_QUANT_TAB[8 + min(max(scaled, -8), 8)]
 						dequantized: int = QOAEncoder._dequantize(quantized, QOAEncoder._SCALE_FACTORS[scale_factor])
-						reconstructed: int = QOAEncoder._clamp(predicted + dequantized, -32768, 32767)
+						reconstructed: int = min(max(predicted + dequantized, -32768), 32767)
 						error: int = sample - reconstructed
 						current_rank += error * error
 						weights_penalty: int = ((lms._weights[0] * lms._weights[0] + lms._weights[1] * lms._weights[1] + lms._weights[2] * lms._weights[2] + lms._weights[3] * lms._weights[3]) >> 18) - 2303
@@ -286,7 +280,7 @@ class QOADecoder(QOABase):
 					if sample_index + s >= samples_count:
 						continue
 					dequantized: int = QOADecoder._dequantize(quantized, scale_factor)
-					reconstructed: int = QOADecoder._clamp(lmses[c]._predict() + dequantized, -32768, 32767)
+					reconstructed: int = min(max(lmses[c]._predict() + dequantized, -32768), 32767)
 					lmses[c]._update(reconstructed, dequantized)
 					samples[sample_offset] = reconstructed
 					sample_offset += channels

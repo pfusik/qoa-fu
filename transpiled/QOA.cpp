@@ -26,11 +26,6 @@ void LMS::update(int sample, int residual)
 	this->history[3] = sample;
 }
 
-int QOABase::clamp(int value, int min, int max)
-{
-	return value < min ? min : value > max ? max : value;
-}
-
 int QOABase::getChannels() const
 {
 	return this->frameHeader >> 24;
@@ -107,9 +102,7 @@ bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
 	LMS bestLMS;
 	std::array<uint8_t, 8> lastScaleFactors {};
 	for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
-		int sliceSamples = samplesCount - sampleIndex;
-		if (sliceSamples > 20)
-			sliceSamples = 20;
+		int sliceSamples = (std::min)(samplesCount - sampleIndex, 20);
 		for (int c = 0; c < channels; c++) {
 			int64_t bestRank = 9223372036854775807;
 			int64_t bestSlice = 0;
@@ -131,9 +124,9 @@ bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
 						scaled += residual > 0 ? 1 : -1;
 					static constexpr std::array<uint8_t, 17> quantTab = { 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
 						6 };
-					int quantized = quantTab[8 + clamp(scaled, -8, 8)];
+					int quantized = quantTab[8 + std::clamp(scaled, -8, 8)];
 					int dequantized = dequantize(quantized, scaleFactors[scaleFactor]);
-					int reconstructed = clamp(predicted + dequantized, -32768, 32767);
+					int reconstructed = std::clamp(predicted + dequantized, -32768, 32767);
 					int64_t error = sample - reconstructed;
 					currentRank += error * error;
 					int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
@@ -245,7 +238,7 @@ int QOADecoder::readFrame(int16_t * samples)
 				if (sampleIndex + s >= samplesCount)
 					continue;
 				int dequantized = dequantize(quantized, scaleFactor);
-				int reconstructed = clamp(lmses[c].predict() + dequantized, -32768, 32767);
+				int reconstructed = std::clamp(lmses[c].predict() + dequantized, -32768, 32767);
 				lmses[c].update(reconstructed, dequantized);
 				samples[sampleOffset] = static_cast<int16_t>(reconstructed);
 				sampleOffset += channels;

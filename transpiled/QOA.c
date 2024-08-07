@@ -2,6 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include "QOA.h"
+
+static int FuInt_Min(int x, int y)
+{
+	return x < y ? x : y;
+}
+
+static int FuInt_Clamp(int x, int minValue, int maxValue)
+{
+	return x < minValue ? minValue : x > maxValue ? maxValue : x;
+}
 typedef struct LMS LMS;
 
 /**
@@ -24,8 +34,6 @@ static void LMS_Update(LMS *self, int sample, int residual);
 struct QOABase {
 	int frameHeader;
 };
-
-static int QOABase_Clamp(int value, int min, int max);
 
 static int QOABase_GetFrameBytes(const QOABase *self, int sampleCount);
 static const int16_t QOABase_SCALE_FACTORS[16] = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
@@ -90,11 +98,6 @@ static void LMS_Update(LMS *self, int sample, int residual)
 	self->history[1] = self->history[2];
 	self->history[2] = self->history[3];
 	self->history[3] = sample;
-}
-
-static int QOABase_Clamp(int value, int min, int max)
-{
-	return value < min ? min : value > max ? max : value;
 }
 
 int QOABase_GetChannels(const QOABase *self)
@@ -173,9 +176,7 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 	LMS bestLMS;
 	uint8_t lastScaleFactors[8] = { 0 };
 	for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
-		int sliceSamples = samplesCount - sampleIndex;
-		if (sliceSamples > 20)
-			sliceSamples = 20;
+		int sliceSamples = FuInt_Min(samplesCount - sampleIndex, 20);
 		for (int c = 0; c < channels; c++) {
 			int64_t bestRank = 9223372036854775807;
 			int64_t bestSlice = 0;
@@ -197,9 +198,9 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 						scaled += residual > 0 ? 1 : -1;
 					static const uint8_t QUANT_TAB[17] = { 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
 						6 };
-					int quantized = QUANT_TAB[8 + QOABase_Clamp(scaled, -8, 8)];
+					int quantized = QUANT_TAB[8 + FuInt_Clamp(scaled, -8, 8)];
 					int dequantized = QOABase_Dequantize(quantized, QOABase_SCALE_FACTORS[scaleFactor]);
-					int reconstructed = QOABase_Clamp(predicted + dequantized, -32768, 32767);
+					int reconstructed = FuInt_Clamp(predicted + dequantized, -32768, 32767);
 					int64_t error = sample - reconstructed;
 					currentRank += error * error;
 					int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
@@ -311,7 +312,7 @@ int QOADecoder_ReadFrame(QOADecoder *self, int16_t *samples)
 				if (sampleIndex + s >= samplesCount)
 					continue;
 				int dequantized = QOABase_Dequantize(quantized, scaleFactor);
-				int reconstructed = QOABase_Clamp(LMS_Predict(&lmses[c]) + dequantized, -32768, 32767);
+				int reconstructed = FuInt_Clamp(LMS_Predict(&lmses[c]) + dequantized, -32768, 32767);
 				LMS_Update(&lmses[c], reconstructed, dequantized);
 				samples[sampleOffset] = (int16_t) reconstructed;
 				sampleOffset += channels;

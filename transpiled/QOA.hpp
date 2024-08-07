@@ -47,7 +47,6 @@ public:
 	static constexpr int maxFrameSamples = 5120;
 protected:
 	QOABase() = default;
-	static int clamp(int value, int min, int max);
 	int frameHeader;
 	static constexpr int sliceSamples = 20;
 	static constexpr int maxFrameSlices = 256;

@@ -37,11 +37,6 @@ class LMS
 public class QOABase
 {
 
-	public static func clamp(_ value : Int, _ min : Int, _ max : Int) -> Int
-	{
-		return value < min ? min : value > max ? max : value
-	}
-
 	public var frameHeader : Int = 0
 
 	/// Maximum number of channels supported by the format.
@@ -161,10 +156,7 @@ public class QOAEncoder : QOABase
 		let bestLMS = LMS()
 		var lastScaleFactors = [UInt8](repeating: 0, count: 8)
 		for sampleIndex in stride(from: 0, to: samplesCount, by: 20) {
-			var sliceSamples : Int = samplesCount - sampleIndex
-			if sliceSamples > 20 {
-				sliceSamples = 20
-			}
+			let sliceSamples : Int = min(samplesCount - sampleIndex, 20)
 			for c in 0..<channels {
 				var bestRank : Int64 = 9223372036854775807
 				var bestSlice : Int64 = 0
@@ -185,9 +177,9 @@ public class QOAEncoder : QOABase
 						if residual != 0 {
 							scaled += residual > 0 ? 1 : -1
 						}
-						let quantized : Int = Int(QOAEncoder.writeFrameQuantTab[8 + QOAEncoder.clamp(scaled, -8, 8)])
+						let quantized : Int = Int(QOAEncoder.writeFrameQuantTab[8 + min(max(scaled, -8), 8)])
 						let dequantized : Int = QOAEncoder.dequantize(quantized, Int(QOAEncoder.scaleFactors[scaleFactor]))
-						let reconstructed : Int = QOAEncoder.clamp(predicted + dequantized, -32768, 32767)
+						let reconstructed : Int = min(max(predicted + dequantized, -32768), 32767)
 						let error : Int64 = Int64(sample - reconstructed)
 						currentRank += error * error
 						let weightsPenalty : Int = (lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18 - 2303
@@ -354,7 +346,7 @@ public class QOADecoder : QOABase
 						continue
 					}
 					let dequantized : Int = QOADecoder.dequantize(quantized, scaleFactor)
-					let reconstructed : Int = QOADecoder.clamp(lmses[c].predict() + dequantized, -32768, 32767)
+					let reconstructed : Int = min(max(lmses[c].predict() + dequantized, -32768), 32767)
 					lmses[c].update(reconstructed, dequantized)
 					samples[sampleOffset] = Int16(reconstructed)
 					sampleOffset += channels

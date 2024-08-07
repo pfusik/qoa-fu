@@ -35,8 +35,6 @@ class LMS
 class QOABase
 {
 
-	protected static int clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
-
 	protected int frameHeader;
 	/// Maximum number of channels supported by the format.
 	static immutable int maxChannels = 8;
@@ -147,9 +145,7 @@ class QOAEncoder : QOABase
 		LMS bestLMS = new LMS;
 		ubyte[8] lastScaleFactors;
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
-			int sliceSamples = samplesCount - sampleIndex;
-			if (sliceSamples > 20)
-				sliceSamples = 20;
+			int sliceSamples = min(samplesCount - sampleIndex, 20);
 			for (int c = 0; c < channels; c++) {
 				long bestRank = 9223372036854775807;
 				long bestSlice = 0;

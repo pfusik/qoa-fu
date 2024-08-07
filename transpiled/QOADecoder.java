@@ -122,7 +122,7 @@ public abstract class QOADecoder extends QOABase
 					if (sampleIndex + s >= samplesCount)
 						continue;
 					int dequantized = dequantize(quantized, scaleFactor);
-					int reconstructed = clamp(lmses[c].predict() + dequantized, -32768, 32767);
+					int reconstructed = Math.min(Math.max(lmses[c].predict() + dequantized, -32768), 32767);
 					lmses[c].update(reconstructed, dequantized);
 					samples[sampleOffset] = (short) reconstructed;
 					sampleOffset += channels;

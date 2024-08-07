@@ -53,8 +53,6 @@ class LMS
 /// Common part of the "Quite OK Audio" format encoder and decoder.
 public abstract class QOABase
 {
-	protected static int Clamp(int value, int min, int max) => value < min ? min : value > max ? max : value;
-
 	protected int FrameHeader;
 
 	/// Maximum number of channels supported by the format.
@@ -168,9 +166,7 @@ public abstract class QOAEncoder : QOABase
 		LMS() bestLMS;
 		0 .. 15 [MaxChannels] lastScaleFactors = 0;
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += SliceSamples) {
-			int sliceSamples = samplesCount - sampleIndex;
-			if (sliceSamples > SliceSamples)
-				sliceSamples = SliceSamples;
+			int sliceSamples = Math.Min(samplesCount - sampleIndex, SliceSamples);
 			for (int c = 0; c < channels; c++) {
 				long bestRank = long.MaxValue;
 				long bestSlice = 0;
@@ -191,9 +187,9 @@ public abstract class QOAEncoder : QOABase
 						if (residual != 0)
 							scaled += residual > 0 ? 1 : -1;
 						const 0 .. 7 [17] quantTab = { 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6, 6 };
-						int quantized = quantTab[8 + Clamp(scaled, -8, 8)];
+						int quantized = quantTab[8 + Math.Clamp(scaled, -8, 8)];
 						int dequantized = Dequantize(quantized, ScaleFactors[scaleFactor]);
-						int reconstructed = Clamp(predicted + dequantized, short.MinValue, short.MaxValue);
+						int reconstructed = Math.Clamp(predicted + dequantized, short.MinValue, short.MaxValue);
 						long error = sample - reconstructed;
 						currentRank += error * error;
 						int weightsPenalty = ((lms.Weights[0] * lms.Weights[0]
@@ -331,7 +327,7 @@ public abstract class QOADecoder : QOABase
 					if (sampleIndex + s >= samplesCount)
 						continue;
 					int dequantized = Dequantize(quantized, scaleFactor);
-					int reconstructed = Clamp(lmses[c].Predict() + dequantized, short.MinValue, short.MaxValue);
+					int reconstructed = Math.Clamp(lmses[c].Predict() + dequantized, short.MinValue, short.MaxValue);
 					lmses[c].Update(reconstructed, dequantized);
 					samples[sampleOffset] = reconstructed;
 					sampleOffset += channels;

@@ -38,11 +38,6 @@ class LMS
  */
 export class QOABase
 {
-
-	static clamp(value, min, max)
-	{
-		return value < min ? min : value > max ? max : value;
-	}
 	frameHeader;
 
 	/**
@@ -170,9 +165,7 @@ export class QOAEncoder extends QOABase
 		const bestLMS = new LMS();
 		const lastScaleFactors = new Uint8Array(8);
 		for (let sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += 20) {
-			let sliceSamples = samplesCount - sampleIndex;
-			if (sliceSamples > 20)
-				sliceSamples = 20;
+			let sliceSamples = Math.min(samplesCount - sampleIndex, 20);
 			for (let c = 0; c < channels; c++) {
 				let bestRank = 9223372036854775807n;
 				let bestSlice = 0n;
@@ -191,14 +184,14 @@ export class QOAEncoder extends QOABase
 							scaled += scaled < 0 ? 1 : -1;
 						if (residual != 0)
 							scaled += residual > 0 ? 1 : -1;
-						let quantized = QOAEncoder.#WRITE_FRAME_QUANT_TAB[8 + QOAEncoder.clamp(scaled, -8, 8)];
+						let quantized = QOAEncoder.#WRITE_FRAME_QUANT_TAB[8 + Math.min(Math.max(scaled, -8), 8)];
 						let dequantized = QOAEncoder.dequantize(quantized, QOAEncoder.SCALE_FACTORS[scaleFactor]);
-						let reconstructed = QOAEncoder.clamp(predicted + dequantized, -32768, 32767);
+						let reconstructed = Math.min(Math.max(predicted + dequantized, -32768), 32767);
 						let error = BigInt(sample - reconstructed);
 						currentRank += error * error;
 						let weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
 						if (weightsPenalty > 0)
-							currentRank += weightsPenalty;
+							currentRank += BigInt(weightsPenalty);
 						if (currentRank >= bestRank)
 							break;
 						lms.update(reconstructed, dequantized);
@@ -211,7 +204,7 @@ export class QOAEncoder extends QOABase
 					}
 				}
 				this.#lMSes[c].assign(bestLMS);
-				bestSlice <<= (20 - sliceSamples) * 3;
+				bestSlice <<= BigInt((20 - sliceSamples) * 3);
 				lastScaleFactors[c] = Number(bestSlice >> 60n);
 				if (!this.writeLong(bestSlice))
 					return false;
@@ -336,7 +329,7 @@ export class QOADecoder extends QOABase
 					if (sampleIndex + s >= samplesCount)
 						continue;
 					let dequantized = QOADecoder.dequantize(quantized, scaleFactor);
-					let reconstructed = QOADecoder.clamp(lmses[c].predict() + dequantized, -32768, 32767);
+					let reconstructed = Math.min(Math.max(lmses[c].predict() + dequantized, -32768), 32767);
 					lmses[c].update(reconstructed, dequantized);
 					samples[sampleOffset] = reconstructed;
 					sampleOffset += channels;

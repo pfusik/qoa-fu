@@ -2,7 +2,7 @@ VERSION = 0.3.0
 FOOBAR2000_SDK_DIR = ../../../foobar2000_SDK
 
 foo_qoa-$(VERSION).fb2k-component: foo_qoa.dll x64/foo_qoa.dll
-	7z a -mx=9 -bd -bso0 -tzip $@ $^
+	'C:/Program Files/7-Zip/7z' a -mx=9 -bd -bso0 -tzip $@ $^
 
 foo_qoa.dll x64/foo_qoa.dll: foo_qoa.cpp ../../transpiled/QOA.cpp $(FOOBAR2000_SDK_DIR)/foobar2000/foobar2000_component_client/component_client.cpp \
 	$(patsubst %, $(FOOBAR2000_SDK_DIR)/foobar2000/SDK/%.cpp, abort_callback album_art audio_chunk audio_chunk_channel_config cfg_var_legacy commonObjects console \

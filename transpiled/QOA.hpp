@@ -14,12 +14,14 @@ class LMS
 {
 public:
 	LMS() = default;
-public:
+private: // internal
 	std::array<int, 4> history;
 	std::array<int, 4> weights;
 	void assign(const LMS * source);
 	int predict() const;
 	void update(int sample, int residual);
+	friend QOADecoder;
+	friend QOAEncoder;
 };
 
 /**

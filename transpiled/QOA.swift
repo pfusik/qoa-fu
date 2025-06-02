@@ -4,9 +4,9 @@
 class LMS
 {
 
-	fileprivate let history = ArrayRef<Int>(repeating: 0, count: 4)
+	fileprivate let history = ArrayRef<Int32>(repeating: 0, count: 4)
 
-	fileprivate let weights = ArrayRef<Int>(repeating: 0, count: 4)
+	fileprivate let weights = ArrayRef<Int32>(repeating: 0, count: 4)
 
 	fileprivate func assign(_ source : LMS)
 	{
@@ -16,20 +16,20 @@ class LMS
 
 	fileprivate func predict() -> Int
 	{
-		return (self.history[0] * self.weights[0] + self.history[1] * self.weights[1] + self.history[2] * self.weights[2] + self.history[3] * self.weights[3]) >> 13
+		return (Int(self.history[0]) * Int(self.weights[0]) + Int(self.history[1]) * Int(self.weights[1]) + Int(self.history[2]) * Int(self.weights[2]) + Int(self.history[3]) * Int(self.weights[3])) >> 13
 	}
 
 	fileprivate func update(_ sample : Int, _ residual : Int)
 	{
 		let delta : Int = residual >> 4
-		self.weights[0] += self.history[0] < 0 ? -delta : delta
-		self.weights[1] += self.history[1] < 0 ? -delta : delta
-		self.weights[2] += self.history[2] < 0 ? -delta : delta
-		self.weights[3] += self.history[3] < 0 ? -delta : delta
+		self.weights[0] += Int32(self.history[0] < 0 ? -delta : delta)
+		self.weights[1] += Int32(self.history[1] < 0 ? -delta : delta)
+		self.weights[2] += Int32(self.history[2] < 0 ? -delta : delta)
+		self.weights[3] += Int32(self.history[3] < 0 ? -delta : delta)
 		self.history[0] = self.history[1]
 		self.history[1] = self.history[2]
 		self.history[2] = self.history[3]
-		self.history[3] = sample
+		self.history[3] = Int32(sample)
 	}
 }
 
@@ -116,22 +116,22 @@ public class QOAEncoder : QOABase
 		}
 		self.frameHeader = channels << 24 | sampleRate
 		for c in 0..<channels {
-			self.lMSes[c].history.fill(0)
-			self.lMSes[c].weights[0] = 0
-			self.lMSes[c].weights[1] = 0
-			self.lMSes[c].weights[2] = -8192
-			self.lMSes[c].weights[3] = 16384
+			self.lMSes[c].history.fill(Int32(0))
+			self.lMSes[c].weights[0] = Int32(0)
+			self.lMSes[c].weights[1] = Int32(0)
+			self.lMSes[c].weights[2] = Int32(-8192)
+			self.lMSes[c].weights[3] = Int32(16384)
 		}
 		let magic : Int64 = 1903124838
 		return writeLong(magic << 32 | Int64(totalSamples))
 	}
 
-	private func writeLMS(_ a : ArrayRef<Int>) -> Bool
+	private func writeLMS(_ a : ArrayRef<Int32>) -> Bool
 	{
 		let a0 : Int64 = Int64(a[0])
 		let a1 : Int64 = Int64(a[1])
 		let a2 : Int64 = Int64(a[2])
-		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | Int64(a[3] & 65535))
+		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | Int64(Int(a[3]) & 65535))
 	}
 
 	/// Encodes and writes a frame.
@@ -163,7 +163,7 @@ public class QOAEncoder : QOABase
 				for scaleFactorDelta in 0..<16 {
 					let scaleFactor : Int = (Int(lastScaleFactors[c]) + scaleFactorDelta) & 15
 					lms.assign(self.lMSes[c])
-					let reciprocal : Int = QOAEncoder.writeFrameReciprocals[scaleFactor]
+					let reciprocal : Int = Int(QOAEncoder.writeFrameReciprocals[scaleFactor])
 					var slice : Int64 = Int64(scaleFactor)
 					var currentRank : Int64 = 0
 					for s in 0..<sliceSamples {
@@ -182,7 +182,7 @@ public class QOAEncoder : QOABase
 						let reconstructed : Int = min(max(predicted + dequantized, -32768), 32767)
 						let error : Int64 = Int64(sample - reconstructed)
 						currentRank += error * error
-						let weightsPenalty : Int = (lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18 - 2303
+						let weightsPenalty : Int = (Int(lms.weights[0]) * Int(lms.weights[0]) + Int(lms.weights[1]) * Int(lms.weights[1]) + Int(lms.weights[2]) * Int(lms.weights[2]) + Int(lms.weights[3]) * Int(lms.weights[3])) >> 18 - 2303
 						if weightsPenalty > 0 {
 							currentRank += Int64(weightsPenalty)
 						}
@@ -209,7 +209,7 @@ public class QOAEncoder : QOABase
 		return true
 	}
 
-	private static let writeFrameReciprocals = [Int]([ 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 ])
+	private static let writeFrameReciprocals = [Int32]([ 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 ])
 
 	private static let writeFrameQuantTab = [UInt8]([ 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
 		6 ])
@@ -290,7 +290,7 @@ public class QOADecoder : QOABase
 		return 8 + getChannels() * 2064
 	}
 
-	private func readLMS(_ result : ArrayRef<Int>) -> Bool
+	private func readLMS(_ result : ArrayRef<Int32>) -> Bool
 	{
 		for i in 0..<4 {
 			let hi : Int = readByte()
@@ -301,7 +301,7 @@ public class QOADecoder : QOABase
 			if lo < 0 {
 				return false
 			}
-			result[i] = (hi ^ 128 - 128) << 8 | lo
+			result[i] = Int32((hi ^ 128 - 128) << 8 | lo)
 		}
 		return true
 	}

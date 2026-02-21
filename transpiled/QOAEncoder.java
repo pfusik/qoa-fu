@@ -78,7 +78,7 @@ public abstract class QOAEncoder extends QOABase
 				long bestRank = 9223372036854775807L;
 				long bestSlice = 0;
 				for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
-					int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
+					int scaleFactor = ((lastScaleFactors[c] & 0xff) + scaleFactorDelta) & 15;
 					lms.assign(this.lMSes[c]);
 					int reciprocal = WRITE_FRAME_RECIPROCALS[scaleFactor];
 					long slice = scaleFactor;
@@ -92,7 +92,7 @@ public abstract class QOAEncoder extends QOABase
 							scaled += scaled < 0 ? 1 : -1;
 						if (residual != 0)
 							scaled += residual > 0 ? 1 : -1;
-						int quantized = WRITE_FRAME_QUANT_TAB[8 + Math.min(Math.max(scaled, -8), 8)];
+						int quantized = WRITE_FRAME_QUANT_TAB[8 + Math.min(Math.max(scaled, -8), 8)] & 0xff;
 						int dequantized = dequantize(quantized, SCALE_FACTORS[scaleFactor]);
 						int reconstructed = Math.min(Math.max(predicted + dequantized, -32768), 32767);
 						long error = sample - reconstructed;

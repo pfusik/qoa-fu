@@ -1,6 +1,6 @@
 // QOA.fu - encoder and decoder of the "Quite OK Audio" format
 //
-// Copyright (C) 2023-2024 Piotr Fusik
+// Copyright (C) 2023-2026 Piotr Fusik
 //
 // MIT License:
 //
@@ -76,7 +76,7 @@ public abstract class QOABase
 		return 8 + GetChannels() * (16 + slices * 8);
 	}
 
-	protected const 1 .. 2048 [16] ScaleFactors = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
+	protected const short[16] ScaleFactors = { 1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048 };
 
 	protected static int Dequantize(int quantized, int scaleFactor)
 	{
@@ -164,7 +164,7 @@ public abstract class QOAEncoder : QOABase
 
 		LMS() lms;
 		LMS() bestLMS;
-		0 .. 15 [MaxChannels] lastScaleFactors = 0;
+		byte[MaxChannels] lastScaleFactors = 0;
 		for (int sampleIndex = 0; sampleIndex < samplesCount; sampleIndex += SliceSamples) {
 			int sliceSamples = Math.Min(samplesCount - sampleIndex, SliceSamples);
 			for (int c = 0; c < channels; c++) {
@@ -173,7 +173,7 @@ public abstract class QOAEncoder : QOABase
 				for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
 					int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 0xf;
 					lms.Assign(LMSes[c]);
-					const 32 .. 65536 [16] reciprocals = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
+					const int[16] reciprocals = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
 					int reciprocal = reciprocals[scaleFactor];
 					long slice = scaleFactor;
 					long currentRank = 0;
@@ -186,7 +186,7 @@ public abstract class QOAEncoder : QOABase
 							scaled += scaled < 0 ? 1 : -1;
 						if (residual != 0)
 							scaled += residual > 0 ? 1 : -1;
-						const 0 .. 7 [17] quantTab = { 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6, 6 };
+						const byte[17] quantTab = { 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6, 6 };
 						int quantized = quantTab[8 + Math.Clamp(scaled, -8, 8)];
 						int dequantized = Dequantize(quantized, ScaleFactors[scaleFactor]);
 						int reconstructed = Math.Clamp(predicted + dequantized, short.MinValue, short.MaxValue);

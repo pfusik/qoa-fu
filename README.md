@@ -10,4 +10,4 @@ License
 
 This code is licensed under the standard MIT license.
 
-Copyright (C) 2023-2024 Piotr Fusik
+Copyright (C) 2023-2026 Piotr Fusik

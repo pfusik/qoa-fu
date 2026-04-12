@@ -104,13 +104,6 @@ export abstract class QOABase
  */
 export abstract class QOAEncoder extends QOABase
 {
-	constructor()
-	{
-		super();
-		for (let _i0 = 0; _i0 < 8; _i0++) {
-			this.#lMSes[_i0] = new LMS();
-		}
-	}
 
 	/**
 	 * Writes the 64-bit integer in big endian order.
@@ -118,7 +111,7 @@ export abstract class QOAEncoder extends QOABase
 	 * @param l The integer to be written to the QOA stream.
 	 */
 	protected abstract writeLong(l: bigint): boolean;
-	readonly #lMSes: LMS[] = new Array(8);
+	readonly #lMSes: LMS[] = Array.from({ length: 8 }, () => new LMS());
 
 	/**
 	 * Writes the file header.
@@ -326,10 +319,7 @@ export abstract class QOADecoder extends QOABase
 		let slices: number = (samplesCount + 19) / 20 | 0;
 		if (this.#readBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
-		const lmses: LMS[] = new Array(8);
-		for (let _i0 = 0; _i0 < 8; _i0++) {
-			lmses[_i0] = new LMS();
-		}
+		const lmses: LMS[] = Array.from({ length: 8 }, () => new LMS());
 		for (let c: number = 0; c < channels; c++) {
 			if (!this.#readLMS(lmses[c].history) || !this.#readLMS(lmses[c].weights))
 				return -1;

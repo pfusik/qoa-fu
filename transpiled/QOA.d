@@ -162,9 +162,9 @@ class QOAEncoder : QOABase
 						int residual = sample - predicted;
 						int scaled = (residual * reciprocal + 32768) >> 16;
 						if (scaled != 0)
-							scaled += scaled < 0 ? cast(byte)(1) : cast(byte)(-1);
+							scaled += scaled < 0 ? cast(byte) 1 : cast(byte) -1;
 						if (residual != 0)
-							scaled += residual > 0 ? cast(byte)(1) : cast(byte)(-1);
+							scaled += residual > 0 ? cast(byte) 1 : cast(byte) -1;
 						static immutable ubyte[17] quantTab = [ 7, 7, 7, 5, 5, 3, 3, 1, 0, 0, 2, 2, 4, 4, 6, 6,
 							6 ];
 						int quantized = quantTab[8 + clamp(scaled, -8, 8)];
@@ -188,7 +188,7 @@ class QOAEncoder : QOABase
 				}
 				this.lMSes[c].assign(bestLMS);
 				bestSlice <<= (20 - sliceSamples) * 3;
-				lastScaleFactors[c] = cast(ubyte)(bestSlice >> 60);
+				lastScaleFactors[c] = cast(ubyte) (bestSlice >> 60);
 				if (!writeLong(bestSlice))
 					return false;
 			}
@@ -309,7 +309,7 @@ class QOADecoder : QOABase
 					int dequantized = dequantize(quantized, scaleFactor);
 					int reconstructed = clamp(lmses[c].predict() + dequantized, -32768, 32767);
 					lmses[c].update(reconstructed, dequantized);
-					samples[sampleOffset] = cast(short)(reconstructed);
+					samples[sampleOffset] = cast(short) reconstructed;
 					sampleOffset += channels;
 				}
 			}

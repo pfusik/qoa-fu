@@ -104,14 +104,7 @@ export class QOABase
  */
 export class QOAEncoder extends QOABase
 {
-	constructor()
-	{
-		super();
-		for (let _i0 = 0; _i0 < 8; _i0++) {
-			this.#lMSes[_i0] = new LMS();
-		}
-	}
-	#lMSes = new Array(8);
+	#lMSes = Array.from({ length: 8 }, () => new LMS());
 
 	/**
 	 * Writes the file header.
@@ -307,10 +300,7 @@ export class QOADecoder extends QOABase
 		let slices = (samplesCount + 19) / 20 | 0;
 		if (this.#readBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
-		const lmses = new Array(8);
-		for (let _i0 = 0; _i0 < 8; _i0++) {
-			lmses[_i0] = new LMS();
-		}
+		const lmses = Array.from({ length: 8 }, () => new LMS());
 		for (let c = 0; c < channels; c++) {
 			if (!this.#readLMS(lmses[c].history) || !this.#readLMS(lmses[c].weights))
 				return -1;

@@ -85,19 +85,13 @@ public abstract class QOABase
 /// <summary>Encoder of the "Quite OK Audio" format.</summary>
 public abstract class QOAEncoder : QOABase
 {
-	internal QOAEncoder()
-	{
-		for (int _i0 = 0; _i0 < 8; _i0++) {
-			this.LMSes[_i0] = new LMS();
-		}
-	}
 
 	/// <summary>Writes the 64-bit integer in big endian order.</summary>
 	/// <remarks>Returns <see langword="true" /> on success.</remarks>
 	/// <param name="l">The integer to be written to the QOA stream.</param>
 	protected abstract bool WriteLong(long l);
 
-	readonly LMS[] LMSes = new LMS[8];
+	readonly LMS[] LMSes = Fu.NewArray(8, () => new LMS());
 
 	/// <summary>Writes the file header.</summary>
 	/// <remarks>Returns <see langword="true" /> on success.</remarks>
@@ -287,10 +281,7 @@ public abstract class QOADecoder : QOABase
 		int slices = (samplesCount + 19) / 20;
 		if (ReadBits(16) != 8 + channels * (16 + slices * 8))
 			return -1;
-		LMS[] lmses = new LMS[8];
-		for (int _i0 = 0; _i0 < 8; _i0++) {
-			lmses[_i0] = new LMS();
-		}
+		LMS[] lmses = Fu.NewArray(8, () => new LMS());
 		for (int c = 0; c < channels; c++) {
 			if (!ReadLMS(lmses[c].History) || !ReadLMS(lmses[c].Weights))
 				return -1;
@@ -332,4 +323,15 @@ public abstract class QOADecoder : QOABase
 
 	/// <summary>Returns <see langword="true" /> if all frames have been read.</summary>
 	public bool IsEnd() => this.PositionSamples >= this.TotalSamples;
+}
+
+static class Fu
+{
+	public static T[] NewArray<T>(int size, Func<T> f)
+	{
+		T[] a = new T[size];
+		for (int i = 0; i < size; i++)
+			a[i] = f();
+		return a;
+	}
 }

@@ -1,3 +1,5 @@
+[![GitHub Actions](https://github.com/pfusik/qoa-fu/actions/workflows/build.yml/badge.svg)](https://github.com/pfusik/qoa-fu/actions/workflows/build.yml)
+
 This project implements encoding and decoding
 of the ["Quite OK Audio" (QOA)](https://github.com/phoboslab/qoa) format
 in the [Fusion programming language](https://fusion-lang.org).

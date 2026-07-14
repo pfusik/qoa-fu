@@ -38,7 +38,7 @@ class LMS
  */
 export abstract class QOABase
 {
-	protected frameHeader: number;
+	protected frameHeader!: number;
 
 	/**
 	 * Maximum number of channels supported by the format.
@@ -236,8 +236,8 @@ export abstract class QOADecoder extends QOABase
 	 * @param position File offset in bytes.
 	 */
 	protected abstract seekToByte(position: number): void;
-	#buffer: number;
-	#bufferBits: number;
+	#buffer!: number;
+	#bufferBits!: number;
 
 	#readBits(bits: number): number
 	{
@@ -253,8 +253,8 @@ export abstract class QOADecoder extends QOABase
 		this.#buffer &= (1 << this.#bufferBits) - 1;
 		return result;
 	}
-	#totalSamples: number;
-	#positionSamples: number;
+	#totalSamples!: number;
+	#positionSamples!: number;
 
 	/**
 	 * Reads the file header.

@@ -1,4 +1,5 @@
 // Generated automatically with "fut". Do not edit.
+#nullable enable
 using System;
 
 /// <summary>Least Mean Squares Filter.</summary>

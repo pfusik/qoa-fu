@@ -10,8 +10,8 @@ jobs:
   make:
     runs-on: ubuntu-24.04
     steps:
-      - run: wget https://github.com/fusionlanguage/fut/releases/download/fut-3.3.8/fut_3.3.8-1_amd64.deb
-      - run: sudo dpkg -i fut_3.3.8-1_amd64.deb
+      - run: gh release download --repo fusionlanguage/fut --pattern fut_*_amd64.deb --dir /tmp/pkg
+      - run: sudo apt-get install -y /tmp/pkg/*.deb
       - uses: actions/checkout@main
       - run: rm transpiled/*
       - run: make -j4

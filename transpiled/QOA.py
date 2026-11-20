@@ -42,7 +42,7 @@ class QOABase(abc.ABC):
 
 	def get_sample_rate(self) -> int:
 		"""Returns the sample rate in Hz."""
-		return self._frame_header & 16777215
+		return self._frame_header & 0xffffff
 
 	_SLICE_SAMPLES = 20
 
@@ -111,7 +111,7 @@ class QOAEncoder(QOABase):
 		a0: int = a[0]
 		a1: int = a[1]
 		a2: int = a[2]
-		return self._write_long(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | (a[3] & 65535))
+		return self._write_long(a0 << 48 | (a1 & 0xffff) << 32 | (a2 & 0xffff) << 16 | (a[3] & 0xffff))
 
 	def write_frame(self, samples: array.array, samples_count: int) -> bool:
 		"""Encodes and writes a frame.
@@ -137,7 +137,7 @@ class QOAEncoder(QOABase):
 				best_rank: int = 9223372036854775807
 				best_slice: int = 0
 				for scale_factor_delta in range(16):
-					scale_factor: int = (last_scale_factors[c] + scale_factor_delta) & 15
+					scale_factor: int = (last_scale_factors[c] + scale_factor_delta) & 0xf
 					lms._assign(self._l_m_ses[c])
 					reciprocal: int = QOAEncoder._WRITE_FRAME_RECIPROCALS[scale_factor]
 					slice: int = scale_factor
@@ -156,7 +156,7 @@ class QOAEncoder(QOABase):
 						reconstructed: int = min(max(predicted + dequantized, -32768), 32767)
 						error: int = sample - reconstructed
 						current_rank += error * error
-						weights_penalty: int = ((lms._weights[0] * lms._weights[0] + lms._weights[1] * lms._weights[1] + lms._weights[2] * lms._weights[2] + lms._weights[3] * lms._weights[3]) >> 18) - 2303
+						weights_penalty: int = ((lms._weights[0] * lms._weights[0] + lms._weights[1] * lms._weights[1] + lms._weights[2] * lms._weights[2] + lms._weights[3] * lms._weights[3]) >> 18) - 0x8ff
 						if weights_penalty > 0:
 							current_rank += weights_penalty
 						if current_rank >= best_rank:
@@ -243,7 +243,7 @@ class QOADecoder(QOABase):
 			lo: int = self._read_byte()
 			if lo < 0:
 				return False
-			result[i] = ((hi ^ 128) - 128) << 8 | lo
+			result[i] = ((hi ^ 0x80) - 0x80) << 8 | lo
 		return True
 
 	def read_frame(self, samples: array.array) -> int:

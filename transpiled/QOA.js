@@ -58,7 +58,7 @@ export class QOABase
 	 */
 	getSampleRate()
 	{
-		return this.frameHeader & 16777215;
+		return this.frameHeader & 0xffffff;
 	}
 
 	static SLICE_SAMPLES = 20;
@@ -134,7 +134,7 @@ export class QOAEncoder extends QOABase
 		let a0 = BigInt(a[0]);
 		let a1 = BigInt(a[1]);
 		let a2 = BigInt(a[2]);
-		return this.writeLong(a0 << 48n | (a1 & 65535n) << 32n | (a2 & 65535n) << 16n | BigInt(a[3] & 65535));
+		return this.writeLong(a0 << 48n | (a1 & 0xffffn) << 32n | (a2 & 0xffffn) << 16n | BigInt(a[3] & 0xffff));
 	}
 
 	/**
@@ -163,7 +163,7 @@ export class QOAEncoder extends QOABase
 				let bestRank = 9223372036854775807n;
 				let bestSlice = 0n;
 				for (let scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
-					let scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
+					let scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 0xf;
 					lms.assign(this.#lMSes[c]);
 					let reciprocal = QOAEncoder.#WRITE_FRAME_RECIPROCALS[scaleFactor];
 					let slice = BigInt(scaleFactor);
@@ -182,7 +182,7 @@ export class QOAEncoder extends QOABase
 						let reconstructed = Math.min(Math.max(predicted + dequantized, -32768), 32767);
 						let error = BigInt(sample - reconstructed);
 						currentRank += error * error;
-						let weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
+						let weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 0x8ff;
 						if (weightsPenalty > 0)
 							currentRank += BigInt(weightsPenalty);
 						if (currentRank >= bestRank)
@@ -279,7 +279,7 @@ export class QOADecoder extends QOABase
 			let lo = this.readByte();
 			if (lo < 0)
 				return false;
-			result[i] = ((hi ^ 128) - 128) << 8 | lo;
+			result[i] = ((hi ^ 0x80) - 0x80) << 8 | lo;
 		}
 		return true;
 	}

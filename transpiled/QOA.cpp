@@ -33,7 +33,7 @@ int QOABase::getChannels() const
 
 int QOABase::getSampleRate() const
 {
-	return this->frameHeader & 16777215;
+	return this->frameHeader & 0xffffff;
 }
 
 int QOABase::getFrameBytes(int sampleCount) const
@@ -83,7 +83,7 @@ bool QOAEncoder::writeLMS(int const * a)
 	int64_t a0 = a[0];
 	int64_t a1 = a[1];
 	int64_t a2 = a[2];
-	return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | (a[3] & 65535));
+	return writeLong(a0 << 48 | (a1 & 0xffff) << 32 | (a2 & 0xffff) << 16 | (a[3] & 0xffff));
 }
 
 bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
@@ -107,7 +107,7 @@ bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
 			int64_t bestRank = 9223372036854775807;
 			int64_t bestSlice = 0;
 			for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
-				int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
+				int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 0xf;
 				lms.assign(&this->lMSes[c]);
 				static constexpr std::array<int, 16> reciprocals = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
 				int reciprocal = reciprocals[scaleFactor];
@@ -129,7 +129,7 @@ bool QOAEncoder::writeFrame(int16_t const * samples, int samplesCount)
 					int reconstructed = std::clamp(predicted + dequantized, -32768, 32767);
 					int64_t error = sample - reconstructed;
 					currentRank += error * error;
-					int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
+					int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 0x8ff;
 					if (weightsPenalty > 0)
 						currentRank += weightsPenalty;
 					if (currentRank >= bestRank)
@@ -203,7 +203,7 @@ bool QOADecoder::readLMS(int * result)
 		int lo = readByte();
 		if (lo < 0)
 			return false;
-		result[i] = ((hi ^ 128) - 128) << 8 | lo;
+		result[i] = ((hi ^ 0x80) - 0x80) << 8 | lo;
 	}
 	return true;
 }

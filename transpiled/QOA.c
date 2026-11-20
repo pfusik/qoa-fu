@@ -107,7 +107,7 @@ int QOABase_GetChannels(const QOABase *self)
 
 int QOABase_GetSampleRate(const QOABase *self)
 {
-	return self->frameHeader & 16777215;
+	return self->frameHeader & 0xffffff;
 }
 
 static int QOABase_GetFrameBytes(const QOABase *self, int sampleCount)
@@ -157,7 +157,7 @@ static bool QOAEncoder_WriteLMS(QOAEncoder *self, int const *a)
 	int64_t a0 = a[0];
 	int64_t a1 = a[1];
 	int64_t a2 = a[2];
-	return self->vtbl->writeLong(self, a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | (a[3] & 65535));
+	return self->vtbl->writeLong(self, a0 << 48 | (a1 & 0xffff) << 32 | (a2 & 0xffff) << 16 | (a[3] & 0xffff));
 }
 
 bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samplesCount)
@@ -181,7 +181,7 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 			int64_t bestRank = 9223372036854775807;
 			int64_t bestSlice = 0;
 			for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
-				int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
+				int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 0xf;
 				LMS_Assign(&lms, &self->lMSes[c]);
 				static const int RECIPROCALS[16] = { 65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32 };
 				int reciprocal = RECIPROCALS[scaleFactor];
@@ -203,7 +203,7 @@ bool QOAEncoder_WriteFrame(QOAEncoder *self, int16_t const *samples, int samples
 					int reconstructed = FuInt_Clamp(predicted + dequantized, -32768, 32767);
 					int64_t error = sample - reconstructed;
 					currentRank += error * error;
-					int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
+					int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 0x8ff;
 					if (weightsPenalty > 0)
 						currentRank += weightsPenalty;
 					if (currentRank >= bestRank)
@@ -277,7 +277,7 @@ static bool QOADecoder_ReadLMS(QOADecoder *self, int *result)
 		int lo = self->vtbl->readByte(self);
 		if (lo < 0)
 			return false;
-		result[i] = ((hi ^ 128) - 128) << 8 | lo;
+		result[i] = ((hi ^ 0x80) - 0x80) << 8 | lo;
 	}
 	return true;
 }

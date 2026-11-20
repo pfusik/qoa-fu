@@ -58,7 +58,7 @@ export abstract class QOABase
 	 */
 	public getSampleRate(): number
 	{
-		return this.frameHeader & 16777215;
+		return this.frameHeader & 0xffffff;
 	}
 
 	protected static readonly SLICE_SAMPLES: number = 20;
@@ -141,7 +141,7 @@ export abstract class QOAEncoder extends QOABase
 		let a0: bigint = BigInt(a[0]);
 		let a1: bigint = BigInt(a[1]);
 		let a2: bigint = BigInt(a[2]);
-		return this.writeLong(a0 << 48n | (a1 & 65535n) << 32n | (a2 & 65535n) << 16n | BigInt(a[3] & 65535));
+		return this.writeLong(a0 << 48n | (a1 & 0xffffn) << 32n | (a2 & 0xffffn) << 16n | BigInt(a[3] & 0xffff));
 	}
 
 	/**
@@ -170,7 +170,7 @@ export abstract class QOAEncoder extends QOABase
 				let bestRank: bigint = 9223372036854775807n;
 				let bestSlice: bigint = 0n;
 				for (let scaleFactorDelta: number = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
-					let scaleFactor: number = (lastScaleFactors[c] + scaleFactorDelta) & 15;
+					let scaleFactor: number = (lastScaleFactors[c] + scaleFactorDelta) & 0xf;
 					lms.assign(this.#lMSes[c]);
 					let reciprocal: number = QOAEncoder.#WRITE_FRAME_RECIPROCALS[scaleFactor];
 					let slice: bigint = BigInt(scaleFactor);
@@ -189,7 +189,7 @@ export abstract class QOAEncoder extends QOABase
 						let reconstructed: number = Math.min(Math.max(predicted + dequantized, -32768), 32767);
 						let error: bigint = BigInt(sample - reconstructed);
 						currentRank += error * error;
-						let weightsPenalty: number = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
+						let weightsPenalty: number = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 0x8ff;
 						if (weightsPenalty > 0)
 							currentRank += BigInt(weightsPenalty);
 						if (currentRank >= bestRank)
@@ -298,7 +298,7 @@ export abstract class QOADecoder extends QOABase
 			let lo: number = this.readByte();
 			if (lo < 0)
 				return false;
-			result[i] = ((hi ^ 128) - 128) << 8 | lo;
+			result[i] = ((hi ^ 0x80) - 0x80) << 8 | lo;
 		}
 		return true;
 	}

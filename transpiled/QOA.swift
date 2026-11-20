@@ -51,7 +51,7 @@ public class QOABase
 	/// Returns the sample rate in Hz.
 	public func getSampleRate() -> Int
 	{
-		return self.frameHeader & 16777215
+		return self.frameHeader & 0xffffff
 	}
 
 	public static let sliceSamples = 20
@@ -131,7 +131,7 @@ public class QOAEncoder: QOABase
 		let a0: Int64 = Int64(a[0])
 		let a1: Int64 = Int64(a[1])
 		let a2: Int64 = Int64(a[2])
-		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | Int64(Int(a[3]) & 65535))
+		return writeLong(a0 << 48 | (a1 & 0xffff) << 32 | (a2 & 0xffff) << 16 | Int64(Int(a[3]) & 0xffff))
 	}
 
 	/// Encodes and writes a frame.
@@ -161,7 +161,7 @@ public class QOAEncoder: QOABase
 				var bestRank: Int64 = 9223372036854775807
 				var bestSlice: Int64 = 0
 				for scaleFactorDelta in 0..<16 {
-					let scaleFactor: Int = (Int(lastScaleFactors[c]) + scaleFactorDelta) & 15
+					let scaleFactor: Int = (Int(lastScaleFactors[c]) + scaleFactorDelta) & 0xf
 					lms.assign(self.lMSes[c])
 					let reciprocal: Int = Int(QOAEncoder.writeFrameReciprocals[scaleFactor])
 					var slice: Int64 = Int64(scaleFactor)
@@ -182,7 +182,7 @@ public class QOAEncoder: QOABase
 						let reconstructed: Int = min(max(predicted + dequantized, -32768), 32767)
 						let error: Int64 = Int64(sample - reconstructed)
 						currentRank += error * error
-						let weightsPenalty: Int = (Int(lms.weights[0]) * Int(lms.weights[0]) + Int(lms.weights[1]) * Int(lms.weights[1]) + Int(lms.weights[2]) * Int(lms.weights[2]) + Int(lms.weights[3]) * Int(lms.weights[3])) >> 18 - 2303
+						let weightsPenalty: Int = (Int(lms.weights[0]) * Int(lms.weights[0]) + Int(lms.weights[1]) * Int(lms.weights[1]) + Int(lms.weights[2]) * Int(lms.weights[2]) + Int(lms.weights[3]) * Int(lms.weights[3])) >> 18 - 0x8ff
 						if weightsPenalty > 0 {
 							currentRank += Int64(weightsPenalty)
 						}
@@ -301,7 +301,7 @@ public class QOADecoder: QOABase
 			if lo < 0 {
 				return false
 			}
-			result[i] = Int32((hi ^ 128 - 128) << 8 | lo)
+			result[i] = Int32((hi ^ 0x80 - 0x80) << 8 | lo)
 		}
 		return true
 	}

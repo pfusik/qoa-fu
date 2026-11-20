@@ -49,7 +49,7 @@ public abstract class QOAEncoder extends QOABase
 		long a0 = a[0];
 		long a1 = a[1];
 		long a2 = a[2];
-		return writeLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | (a[3] & 65535));
+		return writeLong(a0 << 48 | (a1 & 0xffff) << 32 | (a2 & 0xffff) << 16 | (a[3] & 0xffff));
 	}
 
 	/**
@@ -78,7 +78,7 @@ public abstract class QOAEncoder extends QOABase
 				long bestRank = 9223372036854775807L;
 				long bestSlice = 0;
 				for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
-					int scaleFactor = ((lastScaleFactors[c] & 0xff) + scaleFactorDelta) & 15;
+					int scaleFactor = ((lastScaleFactors[c] & 0xff) + scaleFactorDelta) & 0xf;
 					lms.assign(this.lMSes[c]);
 					int reciprocal = WRITE_FRAME_RECIPROCALS[scaleFactor];
 					long slice = scaleFactor;
@@ -97,7 +97,7 @@ public abstract class QOAEncoder extends QOABase
 						int reconstructed = Math.min(Math.max(predicted + dequantized, -32768), 32767);
 						long error = sample - reconstructed;
 						currentRank += error * error;
-						int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 2303;
+						int weightsPenalty = ((lms.weights[0] * lms.weights[0] + lms.weights[1] * lms.weights[1] + lms.weights[2] * lms.weights[2] + lms.weights[3] * lms.weights[3]) >> 18) - 0x8ff;
 						if (weightsPenalty > 0)
 							currentRank += weightsPenalty;
 						if (currentRank >= bestRank)

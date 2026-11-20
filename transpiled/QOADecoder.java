@@ -79,7 +79,7 @@ public abstract class QOADecoder extends QOABase
 			int lo = readByte();
 			if (lo < 0)
 				return false;
-			result[i] = ((hi ^ 128) - 128) << 8 | lo;
+			result[i] = ((hi ^ 0x80) - 0x80) << 8 | lo;
 		}
 		return true;
 	}

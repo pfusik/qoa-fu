@@ -45,7 +45,7 @@ public abstract class QOABase
 	public int GetChannels() => this.FrameHeader >> 24;
 
 	/// <summary>Returns the sample rate in Hz.</summary>
-	public int GetSampleRate() => this.FrameHeader & 16777215;
+	public int GetSampleRate() => this.FrameHeader & 0xffffff;
 
 	protected const int SliceSamples = 20;
 
@@ -120,7 +120,7 @@ public abstract class QOAEncoder : QOABase
 		long a0 = a[0];
 		long a1 = a[1];
 		long a2 = a[2];
-		return WriteLong(a0 << 48 | (a1 & 65535) << 32 | (a2 & 65535) << 16 | (a[3] & 65535));
+		return WriteLong(a0 << 48 | (a1 & 0xffff) << 32 | (a2 & 0xffff) << 16 | (a[3] & 0xffff));
 	}
 
 	/// <summary>Encodes and writes a frame.</summary>
@@ -147,7 +147,7 @@ public abstract class QOAEncoder : QOABase
 				long bestRank = 9223372036854775807;
 				long bestSlice = 0;
 				for (int scaleFactorDelta = 0; scaleFactorDelta < 16; scaleFactorDelta++) {
-					int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 15;
+					int scaleFactor = (lastScaleFactors[c] + scaleFactorDelta) & 0xf;
 					lms.Assign(this.LMSes[c]);
 					int reciprocal = WriteFrame_reciprocals[scaleFactor];
 					long slice = scaleFactor;
@@ -166,7 +166,7 @@ public abstract class QOAEncoder : QOABase
 						int reconstructed = Math.Clamp(predicted + dequantized, -32768, 32767);
 						long error = sample - reconstructed;
 						currentRank += error * error;
-						int weightsPenalty = ((lms.Weights[0] * lms.Weights[0] + lms.Weights[1] * lms.Weights[1] + lms.Weights[2] * lms.Weights[2] + lms.Weights[3] * lms.Weights[3]) >> 18) - 2303;
+						int weightsPenalty = ((lms.Weights[0] * lms.Weights[0] + lms.Weights[1] * lms.Weights[1] + lms.Weights[2] * lms.Weights[2] + lms.Weights[3] * lms.Weights[3]) >> 18) - 0x8ff;
 						if (weightsPenalty > 0)
 							currentRank += weightsPenalty;
 						if (currentRank >= bestRank)
@@ -263,7 +263,7 @@ public abstract class QOADecoder : QOABase
 			int lo = ReadByte();
 			if (lo < 0)
 				return false;
-			result[i] = ((hi ^ 128) - 128) << 8 | lo;
+			result[i] = ((hi ^ 0x80) - 0x80) << 8 | lo;
 		}
 		return true;
 	}

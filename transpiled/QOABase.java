@@ -25,7 +25,7 @@ public abstract class QOABase
 	 */
 	public final int getSampleRate()
 	{
-		return this.frameHeader & 16777215;
+		return this.frameHeader & 0xffffff;
 	}
 
 	protected static final int SLICE_SAMPLES = 20;
